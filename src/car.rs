@@ -1,30 +1,32 @@
-use uuid;
+use binrw::{binrw};
 
-#[repr(packed)]
+#[binrw]
+#[brw(little, magic = b"CTAR")]
 pub struct CarHeader {
-    tag: u32, // 'CTAR'
     core_ui_version: u32,
     storage_version: u32,
     storage_timestamp: u32,
     rendition_count: u32,
     main_version_string: [u8; 128],
     version_string: [u8; 256],
-    uuid: uuid::Uuid,
+    pub uuid: [u8; 16],
     associated_checksum: u32,
     schema_version: u32,
     color_space_id: u32,
     key_semantics: u32,
 }
 
-#[repr(packed)]
+// #[repr(packed)]
+#[binrw]
+#[brw(little, magic = b"META")]
 struct CarExtendedMetadata {
-    tag: u32, // 'META'
     thinning_arguments: [u8; 256],
     deployment_platform_version: [u8; 256],
     deployment_platform: [u8; 256],
     authoring_tool: [u8; 256],
 }
 
+// #[brw(repr(u16))]
 enum RenditionAttributeType {
     ThemeLook = 0,
     Element,
