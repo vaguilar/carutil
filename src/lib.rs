@@ -1,4 +1,3 @@
-use crate::car::CarHeader;
 use anyhow::{Result};
 use bom::BOMHeader;
 use binrw::{BinRead};
@@ -13,11 +12,6 @@ pub fn parse_bom(file_path: &str) -> Result<BOMHeader> {
     Ok(BOMHeader::read(&mut cursor).unwrap())
 }
 
-pub fn parse(file_path: &str) -> Result<CarHeader> {
-    let contents = fs::read(file_path)?;
-    let mut cursor = Cursor::new(contents);
-    Ok(CarHeader::read(&mut cursor).unwrap())
-}
 #[cfg(test)]
 mod tests {
     use super::*;

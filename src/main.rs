@@ -17,7 +17,7 @@ fn main() {
         let index_index = var.index as usize;
         let index = &(*car.index_header).indices[index_index];
         // println!("{:?}", index);
-        println!("{:?}", String::from_utf8(index.tree.tree.to_vec()));
+        // println!("{:?}", String::from_utf8(index.tree.()));
         println!("{:?}", index.tree);
         println!("");
     }
