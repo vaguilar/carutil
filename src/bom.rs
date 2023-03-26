@@ -8,34 +8,31 @@ use crate::car::CarExtendedMetadata;
 pub struct BOMHeader {
     _version: u32,
     _index_nonnull_count: u32,
-    // pub indexOffset: u32,
     pub index_header: FilePtr<u32, BOMIndexHeader>,
     pub index_length: u32,
-    // pub varsOffset: u32,
     pub vars: FilePtr<u32, BOMVars>,
     pub _unknown_len: u32,
 }
 
 // #[repr(C, packed)]
 #[derive(BinRead, Debug)]
-pub struct BOMIndex {
-    // address: u32,
-    pub tree: FilePtr<u32, BOMTree>,
+pub struct BOMPointer {
+    pub entry: FilePtr<u32, BOMEntry>,
     _length: u32,
 }
 
 // #[repr(C, packed)]
 #[derive(BinRead, Debug)]
 pub struct BOMIndexHeader {
-    _count: u32, // number of buffers, some unallocated
+    _count: u32, // number of pointers, some uninitialized
     #[br(count = _count)]
-    pub indices: Vec<BOMIndex>,
+    pub pointers: Vec<BOMPointer>,
 }
 
 // #[repr(C, packed)]
 #[binrw]
 #[derive(Debug)]
-pub enum BOMTree {
+pub enum BOMEntry {
     #[br(little, magic(b"RATC"))] CarHeader {
         header: CarHeader
     },
@@ -43,20 +40,32 @@ pub enum BOMTree {
         metadata: CarExtendedMetadata,
     },
     #[br(magic(b"tree"))] Tree {
-        unknown0: u32,
-        child: u32,
-        node_size: u32,
-        path_count: u32,
-        unknown3: u8,
+        tree: BOMTree,
     },
     #[br(little, magic(b"tmfk"))] KeyFormat {
-        version: u32,
-        max_count: u32,
-        tokens_address: u32,
+       key_format: KeyFormat 
     },
     Unknown {
         magic: [u8; 4],
     }
+}
+
+#[binrw]
+#[derive(Debug)]
+pub struct BOMTree {
+    unknown0: u32,
+    child: u32,
+    node_size: u32,
+    path_count: u32,
+    unknown3: u8,
+}
+
+#[binrw]
+#[derive(Debug)]
+pub struct KeyFormat {
+    version: u32,
+    max_count: u32,
+    tokens_address: u32,
 }
 
 // #[repr(C, packed)]
@@ -76,6 +85,15 @@ pub struct BOMVars {
     count: u32,
     #[br(count = count)]
     pub vars: Vec<BOMVar>,
+}
+
+impl BOMHeader {
+    pub fn var_entries(&self) -> Vec<&BOMEntry> {
+        self.vars.vars.iter().map(|var| {
+            let index = &(*self.index_header).pointers[var.index as usize];
+            &(*index.entry)
+        }).collect()
+    }
 }
 
 #[repr(C, packed)]

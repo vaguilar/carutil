@@ -1,4 +1,4 @@
-use car_reader_lib::{self, parse_bom, bom::BOMTree};
+use car_reader_lib::{self, parse_bom, bom::BOMEntry};
 use clap::{Parser, command, arg, CommandFactory};
 
 #[derive(Parser, Debug)]
@@ -15,24 +15,21 @@ fn main() {
         println!("{}", car_path);
         let car = parse_bom(&car_path).unwrap();
 
-        for var in &(*car.vars).vars {
-            println!("{} - {:?}", var.index, String::from_utf8(var.name.clone()));
-            let index_index = var.index as usize;
-            let index = &(*car.index_header).indices[index_index];
-            match &(*index.tree) {
-                BOMTree::CarHeader { header } => {
+        for entry in car.var_entries() {
+            match &(*entry) {
+                BOMEntry::CarHeader { header } => {
                     println!("{:?}", header);
                 },
-                BOMTree::CarExtendedMetadata { metadata } => {
-                    println!("{:?}", metadata.authoring_tool.to_string());
+                BOMEntry::CarExtendedMetadata { metadata } => {
+                    println!("{:?}", metadata);
                 },
-                BOMTree::Tree{unknown0, child, node_size, path_count, unknown3} => {
-                    println!("{:?}", unknown0);
+                BOMEntry::Tree{tree} => {
+                    println!("{:?}", tree);
                 },
-                BOMTree::KeyFormat{ version, max_count, tokens_address } => {
-                    println!("{:?}", version);
+                BOMEntry::KeyFormat{ key_format } => {
+                    println!("{:?}", key_format);
                 },
-                BOMTree::Unknown{ .. } => {
+                BOMEntry::Unknown{ .. } => {
                     unimplemented!("Unimplemented BOMTree type");
                 },
             }
