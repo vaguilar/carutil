@@ -1,4 +1,30 @@
-use binrw::{binrw};
+use binrw::{binrw, NullString};
+
+#[binrw]
+#[derive(Debug)]
+pub struct CarHeader {
+    core_ui_version: u32,
+    storage_version: u32,
+    storage_timestamp: u32,
+    rendition_count: u32,
+    main_version_string: NullString,
+    version_string: NullString,
+    uuid: [u8; 16],
+    associated_checksum: u32,
+    schema_version: u32,
+    color_space_id: u32,
+    key_semantics: u32,
+}
+
+// #[repr(packed)]
+#[binrw]
+#[derive(Debug)]
+pub struct CarExtendedMetadata {
+    pub thinning_arguments: NullString,
+    pub deployment_platform_version: NullString,
+    pub deployment_platform: NullString,
+    pub authoring_tool: NullString,
+}
 
 // #[brw(repr(u16))]
 enum RenditionAttributeType {

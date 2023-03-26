@@ -4,7 +4,7 @@ use binrw::{BinRead};
 use std::{fs, io::Cursor};
 
 mod car;
-mod bom;
+pub mod bom;
 
 pub fn parse_bom(file_path: &str) -> Result<BOMHeader> {
     let contents = fs::read(file_path)?;
