@@ -1,6 +1,7 @@
 use binrw::{binrw, BinRead, FilePtr};
 use crate::car::CarHeader;
 use crate::car::CarExtendedMetadata;
+use crate::car::KeyFormat;
 
 // #[repr(C, packed)]
 #[derive(BinRead)]
@@ -30,8 +31,7 @@ pub struct BOMIndexHeader {
 }
 
 // #[repr(C, packed)]
-#[binrw]
-#[derive(Debug)]
+#[derive(BinRead, Debug)]
 pub enum BOMEntry {
     #[br(little, magic(b"RATC"))] CarHeader {
         header: CarHeader
@@ -58,14 +58,6 @@ pub struct BOMTree {
     node_size: u32,
     path_count: u32,
     unknown3: u8,
-}
-
-#[binrw]
-#[derive(Debug)]
-pub struct KeyFormat {
-    version: u32,
-    max_count: u32,
-    tokens_address: u32,
 }
 
 // #[repr(C, packed)]

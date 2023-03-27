@@ -30,7 +30,7 @@ fn main() {
                     println!("{:?}", key_format);
                 },
                 BOMEntry::Unknown{ .. } => {
-                    unimplemented!("Unimplemented BOMTree type");
+                    unimplemented!("Unimplemented BOMEntry type");
                 },
             }
             println!("");

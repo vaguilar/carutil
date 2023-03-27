@@ -1,4 +1,4 @@
-use binrw::{binrw, NullString};
+use binrw::{binrw, NullString, BinRead};
 
 #[binrw]
 #[derive(Debug)]
@@ -7,7 +7,9 @@ pub struct CarHeader {
     storage_version: u32,
     storage_timestamp: u32,
     rendition_count: u32,
+    #[br(pad_size_to = 128)]
     main_version_string: NullString,
+    #[br(pad_size_to = 256)]
     version_string: NullString,
     uuid: [u8; 16],
     associated_checksum: u32,
@@ -20,14 +22,27 @@ pub struct CarHeader {
 #[binrw]
 #[derive(Debug)]
 pub struct CarExtendedMetadata {
+    #[br(pad_size_to = 256)]
     pub thinning_arguments: NullString,
+    #[br(pad_size_to = 256)]
     pub deployment_platform_version: NullString,
+    #[br(pad_size_to = 256)]
     pub deployment_platform: NullString,
+    #[br(pad_size_to = 256)]
     pub authoring_tool: NullString,
 }
 
-// #[brw(repr(u16))]
-enum RenditionAttributeType {
+#[derive(Debug, BinRead)]
+pub struct KeyFormat {
+    _version: u32,
+    _max_count: u32,
+    #[br(count = _max_count)]
+    pub token: Vec<RenditionAttributeType>,
+}
+
+#[derive(Debug, BinRead)]
+#[br(repr(u32))]
+pub enum RenditionAttributeType {
     ThemeLook = 0,
     Element,
     Part,
@@ -56,17 +71,20 @@ enum RenditionAttributeType {
     DeploymentTarget,
 }
 
-#[repr(C, packed)]
+// #[repr(C, packed)]
+#[derive(BinRead, Debug)]
 struct RenditionAttribute {
     name: u16,
     value: u16,
 }
 
-#[repr(C, packed)]
+// #[repr(C, packed)]
+#[derive(BinRead, Debug)]
 struct RenditionKeyToken {
     cursor_hotspot: (u16, u16),
     number_of_attributes: u16,
-    attributes: [RenditionAttribute],
+    #[br(count = number_of_attributes)]
+    attributes: Vec<RenditionAttribute>,
 }
 
 #[repr(C, packed)]
