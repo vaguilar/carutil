@@ -1,4 +1,6 @@
-use car_reader_lib::{self, parse_bom, bom::BOMEntry};
+use anyhow::{Result, Context};
+
+use car_reader_lib::AssetCatalog;
 use clap::{Parser, command, arg, CommandFactory};
 
 #[derive(Parser, Debug)]
@@ -9,33 +11,22 @@ struct Args {
    info: Option<String>,
 }
 
-fn main() {
+fn main() -> Result<()> {
     let args = Args::parse();
     if let Some(car_path) = args.info {
-        println!("{}", car_path);
-        let car = parse_bom(&car_path).unwrap();
+        let asset_catalog = AssetCatalog::try_from(car_path.as_ref())?;
+        let header = serde_json::to_value(asset_catalog.header)?;
+        let mut values = asset_catalog.assets
+            .iter()
+            .map(|n| serde_json::to_value(n))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut result: Vec<serde_json::Value> = vec![header];
+        result.append(&mut values);
 
-        for entry in car.var_entries() {
-            match &(*entry) {
-                BOMEntry::CarHeader { header } => {
-                    println!("{:?}", header);
-                },
-                BOMEntry::CarExtendedMetadata { metadata } => {
-                    println!("{:?}", metadata);
-                },
-                BOMEntry::Tree{tree} => {
-                    println!("{:?}", tree);
-                },
-                BOMEntry::KeyFormat{ key_format } => {
-                    println!("{:?}", key_format);
-                },
-                BOMEntry::Unknown{ .. } => {
-                    unimplemented!("Unimplemented BOMEntry type");
-                },
-            }
-            println!("");
-        }
+        let j = serde_json::to_string_pretty(&result)?;
+        println!("{}", j);
     } else {
-        Args::command().print_help().unwrap();
+        return Args::command().print_help().context("no args?");
     }
+    Ok(())
 }

@@ -1,56 +1,71 @@
-use binrw::{binrw, NullString, BinRead};
+use std::fmt;
 
-#[binrw]
-#[derive(Debug)]
+use binrw::{NullString, BinRead, BinResult};
+use num_derive::FromPrimitive;
+use serde::{Serialize, Serializer};
+
+use crate::string::{String4, String128};
+
+#[derive(Debug, Serialize, BinRead)]
+#[brw(little)]
 pub struct CarHeader {
-    core_ui_version: u32,
-    storage_version: u32,
-    storage_timestamp: u32,
-    rendition_count: u32,
+    #[serde(skip)]
+    _magic: u32,
+    #[serde(rename(serialize = "CoreUIVersion"))]
+    pub core_ui_version: u32,
+    #[serde(rename(serialize = "StorageVersion"))]
+    pub storage_version: u32,
+    #[serde(rename(serialize = "Timestamp"))]
+    pub storage_timestamp: u32,
+    pub rendition_count: u32,
     #[br(pad_size_to = 128)]
-    main_version_string: NullString,
+    pub main_version_string: MyNullString,
     #[br(pad_size_to = 256)]
-    version_string: NullString,
-    uuid: [u8; 16],
-    associated_checksum: u32,
-    schema_version: u32,
-    color_space_id: u32,
-    key_semantics: u32,
+    pub version_string: MyNullString,
+    pub uuid: [u8; 16],
+    pub associated_checksum: u32,
+    #[serde(rename(serialize = "SchemaVersion"))]
+    pub schema_version: u32,
+    pub color_space_id: u32,
+    pub key_semantics: u32,
 }
 
-// #[repr(packed)]
-#[binrw]
-#[derive(Debug)]
+#[derive(Debug, Serialize, BinRead)]
+#[brw(little)]
 pub struct CarExtendedMetadata {
+    #[serde(skip)]
+    _magic: u32,
     #[br(pad_size_to = 256)]
-    pub thinning_arguments: NullString,
+    pub thinning_arguments: MyNullString,
     #[br(pad_size_to = 256)]
-    pub deployment_platform_version: NullString,
+    pub deployment_platform_version: MyNullString,
     #[br(pad_size_to = 256)]
-    pub deployment_platform: NullString,
+    pub deployment_platform: MyNullString,
     #[br(pad_size_to = 256)]
-    pub authoring_tool: NullString,
+    pub authoring_tool: MyNullString,
 }
 
 #[derive(Debug, BinRead)]
+#[brw(little)]
 pub struct KeyFormat {
-    _version: u32,
-    _max_count: u32,
+    _magic: String4,
+    pub _version: u32,
+    pub _max_count: u32,
     #[br(count = _max_count)]
-    pub token: Vec<RenditionAttributeType>,
+    pub attribute_types: Vec<RenditionAttributeType>,
 }
 
-#[derive(Debug, BinRead)]
+#[derive(Debug, BinRead, Serialize, FromPrimitive)]
 #[br(repr(u32))]
 pub enum RenditionAttributeType {
-    ThemeLook = 0,
+    Look = 0,
     Element,
     Part,
     Size,
     Direction,
     PlaceHolder,
     Value,
-    ThemeAppearance,
+    Appearance,
     Dimension1,
     Dimension2,
     State,
@@ -60,89 +75,134 @@ pub enum RenditionAttributeType {
     PresentationState,
     Idiom,
     Subtype,
-    Identifier,
+    NameIdentifier,
     PreviousValue,
     PreviousState,
-    HorizontalSizeClass,
-    VerticalSizeClass,
-    MemoryLevelClass,
-    GraphicsFeatureSetClass,
+    SizeClassHorizontal,
+    SizeClassVertical,
+    MemoryClass,
+    GraphicsClass,
     DisplayGamut,
     DeploymentTarget,
 }
 
-// #[repr(C, packed)]
 #[derive(BinRead, Debug)]
-struct RenditionAttribute {
+#[brw(big)]
+pub struct RenditionKeyFmt {
+    _magic: u32,
+    version: u32,
+    _maximum_rendition_key_token_count: u32,
+    #[br(count = _maximum_rendition_key_token_count)]
+    rendition_key_tokens: Vec<RenditionKeyToken>,
+}
+
+#[derive(BinRead, Debug)]
+#[brw(little)]
+pub struct RenditionKeyToken {
+    _cursor_hotspot: (u16, u16),
+    _number_of_attributes: u16,
+    #[br(count = _number_of_attributes)]
+    attributes: Vec<RenditionAttribute>,
+}
+
+#[derive(BinRead, Debug)]
+pub struct RenditionAttribute {
+    #[br(parse_with = parse_rendition_attribute_type_u16)]
+    name: RenditionAttributeType,
+    // name: u16, // RenditionAttributeType
+    value: u16,
+}
+
+#[derive(BinRead, Debug)]
+pub struct Asset {
     name: u16,
     value: u16,
 }
 
-// #[repr(C, packed)]
 #[derive(BinRead, Debug)]
-struct RenditionKeyToken {
-    cursor_hotspot: (u16, u16),
-    number_of_attributes: u16,
-    #[br(count = number_of_attributes)]
-    attributes: Vec<RenditionAttribute>,
+#[brw(little)]
+pub struct CSIMetadata {
+    _mod_time: u32,
+    pub layout: RenditionLayoutType,
+    _zero: u16,
+    pub name: String128,
 }
 
-#[repr(C, packed)]
-struct RenditionKeyFmt {
-    tag: u32,
-    version: u32,
-    maximum_rendition_key_token_count: u32,
-    rendition_key_tokens: [u32],
-}
-
-#[repr(C, packed)]
-struct RenditionFlags {
-    is_header_flagged_fpo: u32,
-    is_excluded_from_contrast_filter: u32,
-    is_vector_based: u32,
-    is_opaque: u32,
-    bitmap_encoding: u32,
-    opt_out_of_thinning: u32,
-    is_flippable: u32,
-    is_tintable: u32,
-    preserved_vector_representation: u32,
-    reserved: u32,
-}
-
-#[repr(C, packed)]
-struct CSIMetadata {
-    mod_time: u32,
-    layout: u16,
-    zero: u16,
-    name: [char; 128],
-}
-
-#[repr(C, packed)]
-struct CSIBitmapList {
-    tvl_length: u32,
+#[derive(BinRead, Debug)]
+pub struct CSIBitmapList {
+    tlv_length: u32,
     unknown: u32,
     zero: u32,
     rendition_length: u32,
 }
 
-#[repr(C, packed)]
-struct CSIHeader {
-    tag: u32,
-    version: u32,
-    rendition_flags: RenditionFlags,
-    width: u32,
-    height: u32,
-    scale_factor: u32,
-    pixel_format: u32,
-    color_space: (u32, u32),
-    csimetadata: CSIMetadata,
-    csibitmaplist: CSIBitmapList,
+#[derive(BinRead, Debug)]
+#[brw(little)]
+pub struct CSIHeader {
+    pub magic: String4,
+    pub version: u32,
+    pub rendition_flags: RenditionFlags,
+    pub width: u32,
+    pub height: u32,
+    pub scale_factor: Scale,
+    pub pixel_format: PixelFormat,
+    pub color_space: ColorSpace,
+    pub csimetadata: CSIMetadata,
+    pub csibitmaplist: CSIBitmapList,
 }
 
-#[repr(u32)]
-enum RenditionLayoutType {
+#[derive(BinRead, Debug)]
+pub struct RenditionFlags {
+    // these values are all packed into one u32
+    // is_header_flagged_fpo: u32,
+    // is_excluded_from_contrast_filter: u32,
+    // is_vector_based: u32,
+    // is_opaque: u32,
+    // bitmap_encoding: u32,
+    // opt_out_of_thinning: u32,
+    // is_flippable: u32,
+    // is_tintable: u32,
+    // preserved_vector_representation: u32,
+    _reserved: u32,
+}
+
+type ColorSpace = u32; // colorSpaceID:4, reserved:28
+
+#[derive(BinRead, Debug)]
+#[br(repr(u32))]
+pub enum PixelFormat {
+    None = 0,
+    ARGB = 0x41524742,
+    Data = 0x44415441,
+    JPEG = 0x4A504547,
+}
+
+#[derive(BinRead)]
+#[br(repr(u32))]
+pub enum Scale {
+    None = 0,
+    X1 = 100,
+    X2 = 200,
+    X3 = 300,
+}
+
+impl fmt::Debug for Scale {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Scale::None => write!(f, "None"),
+            Scale::X1 => write!(f, "1x"),
+            Scale::X2 => write!(f, "2x"),
+            Scale::X3 => write!(f, "3x"),
+        }
+    }
+}
+
+#[derive(BinRead, Debug, PartialOrd, PartialEq, Serialize)]
+#[br(repr(u16))]
+pub enum RenditionLayoutType {
     TextEffect = 0x007,
     Vector = 0x009,
+    Image = 0x00C, // ???
     Data = 0x3E8,
     ExternalLink = 0x3E9,
     LayerStack = 0x3EA,
@@ -177,4 +237,41 @@ enum CoreThemeImageSubtype {
     CoreThemeNinePartEdgesOnly = 34,
     CoreThemeManyPartLayoutUnknown = 40,
     CoreThemeAnimationFilmstrip = 50,
+}
+
+#[derive(Debug)]
+pub struct MyNullString(pub NullString);
+
+impl Serialize for MyNullString {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.0.to_string().as_str())
+    }
+}
+
+impl BinRead for MyNullString {
+    type Args<'a> = ();
+
+    fn read_options<R: std::io::Read + std::io::Seek>(
+        reader: &mut R,
+        endian: binrw::Endian,
+        args: Self::Args<'_>,
+    ) -> binrw::BinResult<Self> {
+        NullString::read_options(reader, endian, args).map(|s| MyNullString(s))
+    }
+}
+
+impl fmt::Display for RenditionAttributeType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}
+
+#[binrw::parser(reader, endian)]
+fn parse_rendition_attribute_type_u16() -> BinResult<RenditionAttributeType> {
+    let raw = u16::read_options(reader, endian, ())?;
+    let attribute = num::FromPrimitive::from_u16(raw);
+    attribute.ok_or(binrw::Error::NoVariantMatch { pos: 0 })
 }
