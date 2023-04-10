@@ -40,9 +40,7 @@ impl BinRead for String128 {
 
 impl fmt::Debug for String128 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let string_length = self.0.iter()
-            .position(|&c| c == b'\0')
-            .unwrap_or(128);
+        let string_length = self.0.iter().position(|&c| c == b'\0').unwrap_or(128);
         if let Ok(string) = std::str::from_utf8(&self.0[0..string_length]) {
             return write!(f, "{}", string);
         }

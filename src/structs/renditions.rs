@@ -9,5 +9,5 @@ enum CUIRendition {
         _raw_data_length: u32,
         #[br(count = _raw_data_length)]
         raw_data: Vec<u8>,
-    }
+    },
 }

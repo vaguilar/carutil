@@ -1,11 +1,11 @@
 use std::fmt;
 
-use binrw::{NullString, BinRead, BinResult};
+use binrw::{BinRead, BinResult, NullString};
+use hex::ToHex;
 use num_derive::FromPrimitive;
 use serde::{Serialize, Serializer};
-use hex::ToHex;
 
-use crate::string::{String4, String128};
+use crate::string::{String128, String4};
 
 #[derive(Debug, BinRead)]
 #[brw(little)]
@@ -84,7 +84,8 @@ pub enum RenditionAttributeType {
 impl Serialize for RenditionAttributeType {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: Serializer {
+        S: Serializer,
+    {
         let s = format!("kCRTheme{}Name", self.to_string());
         serializer.serialize_str(&s)
     }
@@ -221,10 +222,7 @@ pub enum RenditionType {
         orientation: EXIFOrientationValue,
     },
     #[brw(magic = 0x03EFu32)]
-    IDK {
-        _length: u32,
-        value: u32,
-    },
+    IDK { _length: u32, value: u32 },
     Unknown {
         tag: u32,
         length: u32,
@@ -295,7 +293,8 @@ impl fmt::Debug for Scale {
 impl Serialize for Scale {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: Serializer {
+        S: Serializer,
+    {
         match self {
             Scale::None => serializer.serialize_u32(1),
             Scale::X1 => serializer.serialize_u32(1),

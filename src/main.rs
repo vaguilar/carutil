@@ -1,22 +1,22 @@
-use std::{io::Cursor, fs};
+use std::{fs, io::Cursor};
 
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 
 use binrw::BinRead;
-use car_reader_lib::{AssetCatalog, bom::BOMHeader};
-use clap::{Parser, command, arg, CommandFactory};
+use car_reader_lib::{bom::BOMHeader, AssetCatalog};
+use clap::{arg, command, CommandFactory, Parser};
 use memmap::Mmap;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-   /// dumps JSON describing the contents of the .car input file 
-   #[arg(short = 'I', long, value_name = "inputfile")]
-   info: Option<String>,
+    /// dumps JSON describing the contents of the .car input file
+    #[arg(short = 'I', long, value_name = "inputfile")]
+    info: Option<String>,
 
-   /// dumps structs from .car file
-   #[arg(short = 'd', long, value_name = "inputfile")]
-   debug: Option<String>,
+    /// dumps structs from .car file
+    #[arg(short = 'd', long, value_name = "inputfile")]
+    debug: Option<String>,
 }
 
 fn main() -> Result<()> {
@@ -24,7 +24,8 @@ fn main() -> Result<()> {
     if let Some(car_path) = args.info {
         let asset_catalog = AssetCatalog::try_from(car_path.as_ref())?;
         let header = serde_json::to_value(asset_catalog.header)?;
-        let mut values = asset_catalog.assets
+        let mut values = asset_catalog
+            .assets
             .iter()
             .map(|n| serde_json::to_value(n))
             .collect::<Result<Vec<_>, _>>()?;

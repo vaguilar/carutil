@@ -1,19 +1,31 @@
-use anyhow::{Result, Context};
-use bom::{BOMHeader, BOMTree, BOMVar, BOMPaths, BOMPathIndices};
+use anyhow::{Context, Result};
 use binrw::{BinRead, NullString};
-use car::{CarHeader, CarExtendedMetadata, KeyFormat, CSIHeader, RenditionLayoutType, RenditionAttributeType, Scale, RenditionAttribute};
+use bom::{BOMHeader, BOMPathIndices, BOMPaths, BOMTree, BOMVar};
+use car::{
+    CSIHeader, CarExtendedMetadata, CarHeader, KeyFormat, RenditionAttribute,
+    RenditionAttributeType, RenditionLayoutType, Scale,
+};
 use hex::ToHex;
 use hex_literal::hex;
+use memmap::Mmap;
 use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
-use std::{fs, io::{Cursor, Read}, borrow::{Borrow, BorrowMut}, fmt::Debug, cmp::Ordering, ptr::read, collections::BTreeMap, iter::zip};
-use memmap::Mmap;
+use std::{
+    borrow::{Borrow, BorrowMut},
+    cmp::Ordering,
+    collections::BTreeMap,
+    fmt::Debug,
+    fs,
+    io::{Cursor, Read},
+    iter::zip,
+    ptr::read,
+};
 
-use crate::{car::{Facet, RenditionKeyToken, TLVStruct, RenditionType, HexString36, HexString22}};
+use crate::car::{Facet, HexString22, HexString36, RenditionKeyToken, RenditionType, TLVStruct};
 
-pub mod car;
 pub mod bom;
+pub mod car;
 pub mod string;
 pub mod structs;
 
@@ -119,7 +131,12 @@ impl TryFrom<&str> for AssetCatalog {
         let mut facet_keys: Vec<(RenditionKeyToken, String)> = vec![];
         let mut bitmap_keys: Vec<(HexString22, u32)> = vec![];
 
-        for BOMVar { index, length, name } in vars_list {
+        for BOMVar {
+            index,
+            length,
+            name,
+        } in vars_list
+        {
             let name = String::from_utf8_lossy(name);
             let pointer = &bom_header.index_header.pointers[*index as usize];
             let address = pointer.address as u64;
@@ -140,14 +157,15 @@ impl TryFrom<&str> for AssetCatalog {
                     let extended_metadata = CarExtendedMetadata::read(&mut cursor)?;
                     header.authoring_tool = extended_metadata.authoring_tool.0.to_string();
                     header.platform = extended_metadata.deployment_platform.0.to_string();
-                    header.platform_version = extended_metadata.deployment_platform_version.0.to_string();
-                },
+                    header.platform_version =
+                        extended_metadata.deployment_platform_version.0.to_string();
+                }
                 "KEYFORMAT" => {
                     cursor.set_position(address);
                     let mut key_format = KeyFormat::read(&mut cursor)?;
                     dbg!(&key_format);
                     header.key_format.append(&mut key_format.attribute_types);
-                },
+                }
                 "RENDITIONS" => {
                     cursor.set_position(address);
                     let tree = BOMTree::read(&mut cursor)?;
@@ -158,7 +176,7 @@ impl TryFrom<&str> for AssetCatalog {
                     let bom_paths = BOMPaths::read(&mut cursor)?;
                     // dbg!(&bom_paths);
 
-                    for BOMPathIndices {index0, index1} in bom_paths.indices {
+                    for BOMPathIndices { index0, index1 } in bom_paths.indices {
                         let j = index0 as usize;
                         let addr = bom_header.index_header.pointers[j].address as u64;
                         cursor.set_position(addr);
@@ -172,12 +190,13 @@ impl TryFrom<&str> for AssetCatalog {
                         // dbg!(&value);
                         renditions.push((csi_header.clone(), value));
                     }
-                },
+                }
                 "FACETKEYS" => {
                     eprintln!("name={:?}, index={}, length={}", name, index, length);
                     cursor.set_position(address);
                     let tree = BOMTree::read(&mut cursor)?;
-                    let map = parse_bomtree_map::<[u8; 0], NullString>(&bom_header, &mut cursor, &tree)?;
+                    let map =
+                        parse_bomtree_map::<[u8; 0], NullString>(&bom_header, &mut cursor, &tree)?;
                     for BOMPathIndices { index0, index1 } in map {
                         let key_index = index0 as usize;
                         let key_pointer = &bom_header.index_header.pointers[key_index];
@@ -191,11 +210,12 @@ impl TryFrom<&str> for AssetCatalog {
 
                         facet_keys.push((key, value.to_string()));
                     }
-                },
+                }
                 "BITMAPKEYS" => {
                     cursor.set_position(address);
                     let tree = BOMTree::read(&mut cursor)?;
-                    let map = parse_bomtree_map::<[u8; 0], [u8; 0]>(&bom_header, &mut cursor, &tree)?;
+                    let map =
+                        parse_bomtree_map::<[u8; 0], [u8; 0]>(&bom_header, &mut cursor, &tree)?;
                     for BOMPathIndices { index0, index1 } in map {
                         let key_index = index0 as usize;
                         dbg!(key_index);
@@ -206,9 +226,12 @@ impl TryFrom<&str> for AssetCatalog {
                         dbg!(&key, &name_identifier);
                         bitmap_keys.push((key, name_identifier));
                     }
-                },
+                }
                 _ => {
-                    eprintln!("Unknown BOMVar: name={:?}, index={}, length={}", name, index, length);
+                    eprintln!(
+                        "Unknown BOMVar: name={:?}, index={}, length={}",
+                        name, index, length
+                    );
                     // panic!("")
                 }
             }
@@ -217,23 +240,24 @@ impl TryFrom<&str> for AssetCatalog {
         // decode rendition keys
         let mut assets = vec![];
         dbg!(&facet_keys);
-        let name_identifier_to_name: BTreeMap::<u16, String> = facet_keys.iter().map(|(rkt, s)| {
-            let name_identifier = rkt.attributes.iter()
-                .find(|attribute| {
-                    attribute.name == RenditionAttributeType::Identifier
-                });
+        let name_identifier_to_name: BTreeMap<u16, String> = facet_keys
+            .iter()
+            .map(|(rkt, s)| {
+                let name_identifier = rkt
+                    .attributes
+                    .iter()
+                    .find(|attribute| attribute.name == RenditionAttributeType::Identifier);
 
-            if let Some(name_identifier) = name_identifier {
-                Some((name_identifier.value, s.to_owned()))
-            } else {
-                None
-            }
-        })
-        .flatten()
-        .collect();
+                if let Some(name_identifier) = name_identifier {
+                    Some((name_identifier.value, s.to_owned()))
+                } else {
+                    None
+                }
+            })
+            .flatten()
+            .collect();
 
         for (csi_header, key) in renditions {
-
             // decode key
             let key = parse_key(&key, &header.key_format);
             dbg!(&key);
@@ -247,7 +271,7 @@ impl TryFrom<&str> for AssetCatalog {
                 dbg!(&csi_header.csimetadata.name, name_identifier);
             } else {
                 eprintln!("unable to find name identifier for {:?}", csi_header);
-                continue
+                continue;
             }
 
             dbg!(&csi_header.csibitmaplist);
@@ -256,10 +280,10 @@ impl TryFrom<&str> for AssetCatalog {
             let mut uti = "UTI-Unknown".to_string();
             while let Ok(tlv) = RenditionType::read_le(&mut tlv_cursor) {
                 match tlv {
-                    RenditionType::UTI { string, ..} => {
+                    RenditionType::UTI { string, .. } => {
                         uti = String::from_utf8_lossy(&string.0).to_string();
                     }
-                    _ => {},
+                    _ => {}
                 }
             }
 
@@ -268,12 +292,15 @@ impl TryFrom<&str> for AssetCatalog {
             hasher.update(csi_header.rendition_data);
             let sha1_digest: Vec<u8> = hasher.finalize().to_vec();
             let sha1_digest = sha1_digest.as_slice().encode_hex_upper();
-            
+
             // TODO: fix hardcoded
             let common = AssetCatalogAssetCommon {
                 asset_type: csi_header.csimetadata.layout,
                 idiom: "universal".to_string(),
-                name: name_identifier_to_name.get(&name_identifier).map(|s| s.to_owned()).unwrap_or_default(),
+                name: name_identifier_to_name
+                    .get(&name_identifier)
+                    .map(|s| s.to_owned())
+                    .unwrap_or_default(),
                 name_identifier,
                 sha1_digest,
                 scale: csi_header.scale_factor.clone(),
@@ -287,14 +314,14 @@ impl TryFrom<&str> for AssetCatalog {
                         common: common,
                         color_components: [1.0, 0.0, 0.0, 0.5], // TODO: fix
                     }
-                },
+                }
                 RenditionLayoutType::Data => {
                     AssetCatalogAsset::Data {
                         common: common,
                         data_length: 0, // TODO: fix
                         uti: uti,
                     }
-                },
+                }
                 RenditionLayoutType::Image => {
                     AssetCatalogAsset::Image {
                         common: common,
@@ -304,8 +331,10 @@ impl TryFrom<&str> for AssetCatalog {
                         pixel_height: csi_header.height,
                         pixel_width: csi_header.width,
                     }
-                },
-                RenditionLayoutType::MultisizeImage | RenditionLayoutType::PackedImage | RenditionLayoutType::InternalReference => {
+                }
+                RenditionLayoutType::MultisizeImage
+                | RenditionLayoutType::PackedImage
+                | RenditionLayoutType::InternalReference => {
                     AssetCatalogAsset::Image {
                         common: common,
                         bits_per_component: 8, // TODO: fix
@@ -314,22 +343,33 @@ impl TryFrom<&str> for AssetCatalog {
                         pixel_height: csi_header.height,
                         pixel_width: csi_header.width,
                     }
-                },
-                _ => unimplemented!("Unimplemented RenditionLayoutType type: {:?}", csi_header.csimetadata.layout),
+                }
+                _ => unimplemented!(
+                    "Unimplemented RenditionLayoutType type: {:?}",
+                    csi_header.csimetadata.layout
+                ),
             };
             assets.push(asset);
         }
 
         assets.sort_by(|a, b| {
             match a {
-                AssetCatalogAsset::Image { common, rendition_name, .. } => {
+                AssetCatalogAsset::Image {
+                    common,
+                    rendition_name,
+                    ..
+                } => {
                     let a_common = common;
                     let a_rendition_name = rendition_name;
                     match b {
-                        AssetCatalogAsset::Image { common, rendition_name, .. } => a_rendition_name.cmp(&rendition_name),
+                        AssetCatalogAsset::Image {
+                            common,
+                            rendition_name,
+                            ..
+                        } => a_rendition_name.cmp(&rendition_name),
                         _ => Ordering::Equal,
                     }
-                },
+                }
                 _ => Ordering::Equal,
             }
             // b.common.asset_type.partial_cmp(&a.common.asset_type).unwrap_or(std::cmp::Ordering::Equal)
@@ -338,12 +378,17 @@ impl TryFrom<&str> for AssetCatalog {
     }
 }
 
-fn parse_bomtree_map<T, U>(bom_header: &BOMHeader, cursor: &mut Cursor<Mmap>, tree: &BOMTree) -> Result<Vec<BOMPathIndices>>
-    where T: BinRead + binrw::meta::ReadEndian,
-    U: BinRead  + binrw::meta::ReadEndian,
+fn parse_bomtree_map<T, U>(
+    bom_header: &BOMHeader,
+    cursor: &mut Cursor<Mmap>,
+    tree: &BOMTree,
+) -> Result<Vec<BOMPathIndices>>
+where
+    T: BinRead + binrw::meta::ReadEndian,
+    U: BinRead + binrw::meta::ReadEndian,
     for<'a> <T as BinRead>::Args<'a>: Default,
-    for<'a> <U as BinRead>::Args<'a>: Default
-    {
+    for<'a> <U as BinRead>::Args<'a>: Default,
+{
     let mut result = Vec::new();
     let tree_index = tree.child_index as usize;
     let index_address = bom_header.index_header.pointers[tree_index].address as u64;
