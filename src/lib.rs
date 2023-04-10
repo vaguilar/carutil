@@ -1,14 +1,21 @@
 use anyhow::{Result, Context};
-use bom::{BOMHeader, BOMTree, BOMVar, BOMPaths};
-use binrw::{BinRead};
-use car::{CarHeader, CarExtendedMetadata, KeyFormat, CSIHeader, RenditionLayoutType, RenditionAttributeType};
+use bom::{BOMHeader, BOMTree, BOMVar, BOMPaths, BOMPathIndices};
+use binrw::{BinRead, NullString};
+use car::{CarHeader, CarExtendedMetadata, KeyFormat, CSIHeader, RenditionLayoutType, RenditionAttributeType, Scale, RenditionAttribute};
+use hex::ToHex;
+use hex_literal::hex;
 use serde::Serialize;
-use std::{fs, io::Cursor, borrow::Borrow, fmt::Debug};
+use sha2::Digest;
+use sha2::Sha256;
+use std::{fs, io::{Cursor, Read}, borrow::{Borrow, BorrowMut}, fmt::Debug, cmp::Ordering, ptr::read, collections::BTreeMap, iter::zip};
 use memmap::Mmap;
+
+use crate::{car::{Facet, RenditionKeyToken, TLVStruct, RenditionType, HexString36, HexString22}};
 
 pub mod car;
 pub mod bom;
 pub mod string;
+pub mod structs;
 
 #[derive(Debug)]
 pub struct AssetCatalog {
@@ -43,11 +50,56 @@ pub struct AssetCatalogHeader {
 }
 
 #[derive(Debug, Serialize)]
-pub struct AssetCatalogAsset {
+pub struct AssetCatalogAssetCommon {
     #[serde(rename(serialize = "AssetType"))]
     pub asset_type: RenditionLayoutType,
+    #[serde(rename(serialize = "Idiom"))]
+    pub idiom: String,
     #[serde(rename(serialize = "Name"))]
     pub name: String,
+    #[serde(rename(serialize = "NameIdentifier"))]
+    pub name_identifier: u16,
+    #[serde(rename(serialize = "Scale"))]
+    pub scale: Scale,
+    #[serde(rename(serialize = "SHA1Digest"))]
+    pub sha1_digest: String,
+    #[serde(rename(serialize = "SizeOnDisk"))]
+    pub size_on_disk: u32,
+    #[serde(rename(serialize = "Value"))]
+    pub value: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum AssetCatalogAsset {
+    Color {
+        #[serde(flatten)]
+        common: AssetCatalogAssetCommon,
+        #[serde(rename(serialize = "Color components"))]
+        color_components: [f32; 4],
+    },
+    Data {
+        #[serde(flatten)]
+        common: AssetCatalogAssetCommon,
+        #[serde(rename(serialize = "Data Length"))]
+        data_length: u32,
+        #[serde(rename(serialize = "UTI"))]
+        uti: String,
+    },
+    Image {
+        #[serde(flatten)]
+        common: AssetCatalogAssetCommon,
+        #[serde(rename(serialize = "BitsPerComponent"))]
+        bits_per_component: u32,
+        #[serde(rename(serialize = "Encoding"))]
+        encoding: String,
+        #[serde(rename(serialize = "RenditionName"))]
+        rendition_name: String,
+        #[serde(rename(serialize = "PixelHeight"))]
+        pixel_height: u32,
+        #[serde(rename(serialize = "PixelWidth"))]
+        pixel_width: u32,
+    },
 }
 
 impl TryFrom<&str> for AssetCatalog {
@@ -60,12 +112,17 @@ impl TryFrom<&str> for AssetCatalog {
 
         let bom_header = BOMHeader::read(&mut cursor)?;
         let vars_list = &(*bom_header.vars).vars;
+        dbg!(&(*bom_header.vars));
 
         let mut header: AssetCatalogHeader = Default::default();
-        let mut assets = vec![];
+        let mut renditions: Vec<(CSIHeader, [u16; 18])> = vec![];
+        let mut facet_keys: Vec<(RenditionKeyToken, String)> = vec![];
+        let mut bitmap_keys: Vec<(HexString22, u32)> = vec![];
+
         for BOMVar { index, length, name } in vars_list {
             let name = String::from_utf8_lossy(name);
-            let address = bom_header.index_header.pointers[*index as usize].address as u64;
+            let pointer = &bom_header.index_header.pointers[*index as usize];
+            let address = pointer.address as u64;
             match name.borrow() {
                 "CARHEADER" => {
                     cursor.set_position(address);
@@ -87,31 +144,69 @@ impl TryFrom<&str> for AssetCatalog {
                 },
                 "KEYFORMAT" => {
                     cursor.set_position(address);
-                    let mut extended_metadata = KeyFormat::read(&mut cursor)?;
-                    header.key_format.append(&mut extended_metadata.attribute_types);
+                    let mut key_format = KeyFormat::read(&mut cursor)?;
+                    dbg!(&key_format);
+                    header.key_format.append(&mut key_format.attribute_types);
                 },
                 "RENDITIONS" => {
-                    let tree = parse_tree(&file_path, address)?;
-                    dbg!(&tree);
-                    let i = tree.child_index as usize;
-                    let address2 = bom_header.index_header.pointers[i].address as u64;
-                    cursor.set_position(address2);
+                    cursor.set_position(address);
+                    let tree = BOMTree::read(&mut cursor)?;
+                    // dbg!(&tree);
+                    let tree_index = tree.child_index as usize;
+                    let index_address = bom_header.index_header.pointers[tree_index].address as u64;
+                    cursor.set_position(index_address);
                     let bom_paths = BOMPaths::read(&mut cursor)?;
-                    dbg!(&bom_paths);
-                    for index in bom_paths.indices {
-                        let j = index.index0 as usize;
+                    // dbg!(&bom_paths);
+
+                    for BOMPathIndices {index0, index1} in bom_paths.indices {
+                        let j = index0 as usize;
                         let addr = bom_header.index_header.pointers[j].address as u64;
                         cursor.set_position(addr);
                         let csi_header = CSIHeader::read(&mut cursor)?;
                         // dbg!(&csi_header);
 
-                        let asset = AssetCatalogAsset { 
-                            asset_type: csi_header.csimetadata.layout,
-                            name: format!("{:?}", csi_header.csimetadata.name),
-                        };
-                        assets.push(asset);
+                        let value_index = index1 as usize;
+                        let value_pointer = &bom_header.index_header.pointers[value_index];
+                        cursor.set_position(value_pointer.address as u64);
+                        let value = <[u16; 18]>::read_le(&mut cursor)?;
+                        // dbg!(&value);
+                        renditions.push((csi_header.clone(), value));
                     }
-                }
+                },
+                "FACETKEYS" => {
+                    eprintln!("name={:?}, index={}, length={}", name, index, length);
+                    cursor.set_position(address);
+                    let tree = BOMTree::read(&mut cursor)?;
+                    let map = parse_bomtree_map::<[u8; 0], NullString>(&bom_header, &mut cursor, &tree)?;
+                    for BOMPathIndices { index0, index1 } in map {
+                        let key_index = index0 as usize;
+                        let key_pointer = &bom_header.index_header.pointers[key_index];
+                        cursor.set_position(key_pointer.address as u64);
+                        let key = RenditionKeyToken::read(&mut cursor)?;
+
+                        let value_index = index1 as usize;
+                        let value_pointer = &bom_header.index_header.pointers[value_index];
+                        cursor.set_position(value_pointer.address as u64);
+                        let value = NullString::read(&mut cursor)?;
+
+                        facet_keys.push((key, value.to_string()));
+                    }
+                },
+                "BITMAPKEYS" => {
+                    cursor.set_position(address);
+                    let tree = BOMTree::read(&mut cursor)?;
+                    let map = parse_bomtree_map::<[u8; 0], [u8; 0]>(&bom_header, &mut cursor, &tree)?;
+                    for BOMPathIndices { index0, index1 } in map {
+                        let key_index = index0 as usize;
+                        dbg!(key_index);
+                        let key_pointer = &bom_header.index_header.pointers[key_index];
+                        cursor.set_position((key_pointer.address) as u64);
+                        let key = HexString22::read(&mut cursor)?;
+                        let name_identifier = index1;
+                        dbg!(&key, &name_identifier);
+                        bitmap_keys.push((key, name_identifier));
+                    }
+                },
                 _ => {
                     eprintln!("Unknown BOMVar: name={:?}, index={}, length={}", name, index, length);
                     // panic!("")
@@ -119,18 +214,171 @@ impl TryFrom<&str> for AssetCatalog {
             }
         }
 
+        // decode rendition keys
+        let mut assets = vec![];
+        dbg!(&facet_keys);
+        let name_identifier_to_name: BTreeMap::<u16, String> = facet_keys.iter().map(|(rkt, s)| {
+            let name_identifier = rkt.attributes.iter()
+                .find(|attribute| {
+                    attribute.name == RenditionAttributeType::Identifier
+                });
+
+            if let Some(name_identifier) = name_identifier {
+                Some((name_identifier.value, s.to_owned()))
+            } else {
+                None
+            }
+        })
+        .flatten()
+        .collect();
+
+        for (csi_header, key) in renditions {
+
+            // decode key
+            let key = parse_key(&key, &header.key_format);
+            dbg!(&key);
+            let name_identifier_pair = key.iter().find(|(rendition_attribute_type, _value)| {
+                *rendition_attribute_type == RenditionAttributeType::Identifier
+            });
+
+            let name_identifier: u16;
+            if let Some((_, n_id)) = name_identifier_pair {
+                name_identifier = *n_id;
+                dbg!(&csi_header.csimetadata.name, name_identifier);
+            } else {
+                eprintln!("unable to find name identifier for {:?}", csi_header);
+                continue
+            }
+
+            dbg!(&csi_header.csibitmaplist);
+            let mut tlv_cursor = Cursor::new(csi_header.tlv_data);
+            // dbg!(&csi_header.tlv_data);
+            let mut uti = "UTI-Unknown".to_string();
+            while let Ok(tlv) = RenditionType::read_le(&mut tlv_cursor) {
+                match tlv {
+                    RenditionType::UTI { string, ..} => {
+                        uti = String::from_utf8_lossy(&string.0).to_string();
+                    }
+                    _ => {},
+                }
+            }
+
+            // SHA-1 key is actually SHA-256 of rendition data?
+            let mut hasher = Sha256::new();
+            hasher.update(csi_header.rendition_data);
+            let sha1_digest: Vec<u8> = hasher.finalize().to_vec();
+            let sha1_digest = sha1_digest.as_slice().encode_hex_upper();
+            
+            // TODO: fix hardcoded
+            let common = AssetCatalogAssetCommon {
+                asset_type: csi_header.csimetadata.layout,
+                idiom: "universal".to_string(),
+                name: name_identifier_to_name.get(&name_identifier).map(|s| s.to_owned()).unwrap_or_default(),
+                name_identifier,
+                sha1_digest,
+                scale: csi_header.scale_factor.clone(),
+                size_on_disk: csi_header.csibitmaplist.rendition_length,
+                value: "Off".to_string(),
+            };
+
+            let asset = match csi_header.csimetadata.layout {
+                RenditionLayoutType::Color => {
+                    AssetCatalogAsset::Color {
+                        common: common,
+                        color_components: [1.0, 0.0, 0.0, 0.5], // TODO: fix
+                    }
+                },
+                RenditionLayoutType::Data => {
+                    AssetCatalogAsset::Data {
+                        common: common,
+                        data_length: 0, // TODO: fix
+                        uti: uti,
+                    }
+                },
+                RenditionLayoutType::Image => {
+                    AssetCatalogAsset::Image {
+                        common: common,
+                        bits_per_component: 8, // TODO: fix
+                        encoding: format!("{:?}", csi_header.pixel_format),
+                        rendition_name: format!("{:?}", csi_header.csimetadata.name),
+                        pixel_height: csi_header.height,
+                        pixel_width: csi_header.width,
+                    }
+                },
+                RenditionLayoutType::MultisizeImage | RenditionLayoutType::PackedImage | RenditionLayoutType::InternalReference => {
+                    AssetCatalogAsset::Image {
+                        common: common,
+                        bits_per_component: 8, // TODO: fix
+                        encoding: format!("{:?}", csi_header.pixel_format),
+                        rendition_name: format!("{:?}", csi_header.csimetadata.name),
+                        pixel_height: csi_header.height,
+                        pixel_width: csi_header.width,
+                    }
+                },
+                _ => unimplemented!("Unimplemented RenditionLayoutType type: {:?}", csi_header.csimetadata.layout),
+            };
+            assets.push(asset);
+        }
+
         assets.sort_by(|a, b| {
-            b.asset_type.partial_cmp(&a.asset_type).unwrap_or(std::cmp::Ordering::Equal)
+            match a {
+                AssetCatalogAsset::Image { common, rendition_name, .. } => {
+                    let a_common = common;
+                    let a_rendition_name = rendition_name;
+                    match b {
+                        AssetCatalogAsset::Image { common, rendition_name, .. } => a_rendition_name.cmp(&rendition_name),
+                        _ => Ordering::Equal,
+                    }
+                },
+                _ => Ordering::Equal,
+            }
+            // b.common.asset_type.partial_cmp(&a.common.asset_type).unwrap_or(std::cmp::Ordering::Equal)
         });
         Ok(AssetCatalog { header, assets })
     }
 }
 
-pub fn parse_tree(file_path: &str, pos: u64) -> Result<BOMTree> {
-    let contents = fs::read(file_path)?;
-    let mut cursor = Cursor::new(contents);
-    cursor.set_position(pos);
-    BOMTree::read(&mut cursor).context(format!("unable to parse RenditionKeyToken at pos {}", pos))
+fn parse_bomtree_map<T, U>(bom_header: &BOMHeader, cursor: &mut Cursor<Mmap>, tree: &BOMTree) -> Result<Vec<BOMPathIndices>>
+    where T: BinRead + binrw::meta::ReadEndian,
+    U: BinRead  + binrw::meta::ReadEndian,
+    for<'a> <T as BinRead>::Args<'a>: Default,
+    for<'a> <U as BinRead>::Args<'a>: Default
+    {
+    let mut result = Vec::new();
+    let tree_index = tree.child_index as usize;
+    let index_address = bom_header.index_header.pointers[tree_index].address as u64;
+    cursor.set_position(index_address);
+    let bom_paths = BOMPaths::read(cursor)?;
+    return Ok(bom_paths.indices);
+
+    // for BOMPathIndices{index0, index1} in bom_paths.indices {
+    //     let key_index = index0 as usize;
+    //     let key_pointer = &bom_header.index_header.pointers[key_index];
+    //     cursor.set_position(key_pointer.address as u64);
+    //     let key = T::read(cursor)?;
+
+    //     match U {
+    //         u32 => {}
+    //         _ => {
+    //             let value_index = index1 as usize;
+    //             let value_pointer = &bom_header.index_header.pointers[value_index];
+    //             cursor.set_position(value_pointer.address as u64);
+    //             let value = U::read(cursor)?;
+    //             result.push((key, value));
+    //         }
+    //     }
+    // }
+    Ok(result)
+}
+
+fn parse_key(blob: &[u16], keys: &[RenditionAttributeType]) -> Vec<(RenditionAttributeType, u16)> {
+    let mut result = vec![];
+
+    for (key, value) in zip(keys, blob) {
+        result.push((*key, *value));
+    }
+
+    result
 }
 
 #[cfg(test)]

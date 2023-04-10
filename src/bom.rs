@@ -1,6 +1,6 @@
-use binrw::{binrw, BinRead, FilePtr};
+use binrw::{binrw, BinRead, FilePtr, NullString};
 
-#[derive(BinRead)]
+#[derive(BinRead, Debug)]
 #[brw(big, magic = b"BOMStore")]
 pub struct BOMHeader {
     _version: u32,
@@ -21,7 +21,7 @@ pub struct BOMIndexHeader {
 #[derive(BinRead, Debug)]
 pub struct BOMPointer {
     pub address: u32,
-    _length: u32,
+    pub length: u32,
 }
 
 #[binrw]
@@ -67,24 +67,4 @@ pub struct BOMPaths {
     pub backward: u32,
     #[br(count = count)]
     pub indices: Vec<BOMPathIndices>,
-}
-
-struct BOMPathInfo2 {
-    type_: u8,
-    unknown0: u8,
-    architecture: u16,
-    mode: u16,
-    user: u32,
-    group: u32,
-    modtime: u32,
-    size: u32,
-    unknown1: u8,
-    checksum_dev_type: u32,
-    link_name_length: u32,
-    link_name: [u8; 0],
-}
-
-struct BOMPathInfo1 {
-    id: u32,
-    index: u32,
 }

@@ -2,6 +2,7 @@ use std::fmt;
 
 use binrw::{BinRead, BinReaderExt};
 
+#[derive(Clone)]
 pub struct String4(pub [u8; 4]);
 
 impl BinRead for String4 {
@@ -22,6 +23,7 @@ impl fmt::Debug for String4 {
     }
 }
 
+#[derive(Clone)]
 pub struct String128(pub [u8; 128]);
 
 impl BinRead for String128 {
