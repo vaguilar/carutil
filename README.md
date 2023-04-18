@@ -1,2 +1,2 @@
-# car_reader
+# car-reader
 A cross-platform `assetutil` tool
