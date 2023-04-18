@@ -1,11 +1,15 @@
 use std::fmt;
 
-use binrw::{BinRead, BinResult, NullString};
+use binrw::BinRead;
+use binrw::BinResult;
+use binrw::NullString;
 use hex::ToHex;
 use num_derive::FromPrimitive;
-use serde::{Serialize, Serializer};
+use serde::Serialize;
+use serde::Serializer;
 
-use crate::string::{String128, String4};
+use crate::string::String128;
+use crate::string::String4;
 use crate::structs::renditions::CUIRendition;
 
 #[derive(Debug, BinRead)]
@@ -96,10 +100,10 @@ impl Serialize for RenditionAttributeType {
 #[brw(big)]
 pub struct RenditionKeyFmt {
     _magic: u32,
-    version: u32,
+    _version: u32,
     _maximum_rendition_key_token_count: u32,
     #[br(count = _maximum_rendition_key_token_count)]
-    rendition_key_tokens: Vec<RenditionKeyToken>,
+    _rendition_key_tokens: Vec<RenditionKeyToken>,
 }
 
 #[derive(BinRead, Debug)]
@@ -121,8 +125,8 @@ pub struct RenditionAttribute {
 
 #[derive(BinRead, Debug)]
 pub struct Asset {
-    name: u16,
-    value: u16,
+    _name: u16,
+    _value: u16,
 }
 
 #[derive(BinRead, Debug, Clone)]

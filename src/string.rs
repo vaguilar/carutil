@@ -1,6 +1,7 @@
 use std::fmt;
 
-use binrw::{BinRead, BinReaderExt};
+use binrw::BinRead;
+use binrw::BinReaderExt;
 
 #[derive(Clone)]
 pub struct String4(pub [u8; 4]);

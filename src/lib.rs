@@ -1,29 +1,37 @@
-use anyhow::{Context, Result};
-use binrw::{BinRead, NullString};
-use bom::{BOMHeader, BOMPathIndices, BOMPaths, BOMTree, BOMVar};
-use car::{
-    CSIHeader, CarExtendedMetadata, CarHeader, KeyFormat, RenditionAttribute,
-    RenditionAttributeType, RenditionLayoutType, Scale,
-};
+use anyhow::Result;
+use binrw::BinRead;
+use binrw::NullString;
+use bom::BOMHeader;
+use bom::BOMPathIndices;
+use bom::BOMPaths;
+use bom::BOMTree;
+use bom::BOMVar;
+use car::CSIHeader;
+use car::CarExtendedMetadata;
+use car::CarHeader;
+use car::KeyFormat;
+use car::RenditionAttributeType;
+use car::RenditionLayoutType;
+use car::Scale;
 use hex::ToHex;
-use hex_literal::hex;
 use memmap::Mmap;
 use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
-use std::{
-    borrow::{Borrow, BorrowMut},
-    cmp::Ordering,
-    collections::BTreeMap,
-    fmt::Debug,
-    fs,
-    io::{Cursor, Read},
-    iter::zip,
-};
+use std::borrow::Borrow;
+use std::cmp::Ordering;
+use std::collections::BTreeMap;
+use std::fmt::Debug;
+use std::fs;
+use std::io::Cursor;
+use std::io::Read;
+use std::iter::zip;
 use structs::renditions::CompressionType;
 use structs::renditions::State;
 
-use crate::car::{HexString22, HexString36, RenditionKeyToken, RenditionType, TLVStruct};
+use crate::car::HexString22;
+use crate::car::RenditionKeyToken;
+use crate::car::RenditionType;
 use crate::structs::renditions::CUIRendition;
 
 pub mod bom;

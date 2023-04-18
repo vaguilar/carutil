@@ -1,4 +1,6 @@
-use binrw::{binrw, BinRead, FilePtr, NullString};
+use binrw::binrw;
+use binrw::BinRead;
+use binrw::FilePtr;
 
 #[derive(BinRead, Debug)]
 #[brw(big, magic = b"BOMStore")]

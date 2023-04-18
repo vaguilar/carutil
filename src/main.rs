@@ -1,10 +1,16 @@
-use std::{fs, io::Cursor};
+use std::fs;
+use std::io::Cursor;
 
-use anyhow::{Context, Result};
+use anyhow::Context;
+use anyhow::Result;
 
 use binrw::BinRead;
-use car_reader_lib::{bom::BOMHeader, AssetCatalog};
-use clap::{arg, command, CommandFactory, Parser};
+use car_reader_lib::bom::BOMHeader;
+use car_reader_lib::AssetCatalog;
+use clap::arg;
+use clap::command;
+use clap::CommandFactory;
+use clap::Parser;
 use memmap::Mmap;
 
 #[derive(Parser, Debug)]
@@ -46,9 +52,8 @@ fn main() -> Result<()> {
             let name = String::from_utf8(var.name.clone())?;
             println!("{:?}", name);
 
-            let index = var.index as usize;
-            let pointer = &bom_header.index_header.pointers[index];
-            // pointer.
+            // let index = var.index as usize;
+            // let pointer = &bom_header.index_header.pointers[index];
         }
     } else {
         return Args::command().print_help().context("no args?");

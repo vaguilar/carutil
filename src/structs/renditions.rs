@@ -47,10 +47,10 @@ pub enum CUIRendition {
 
 #[derive(Debug, BinRead, Clone)]
 pub struct MSISEntry {
-    width: u32,
-    height: u32,
-    index: u16,
-    idiom: Idiom,
+    _width: u32,
+    _height: u32,
+    _index: u16,
+    _idiom: Idiom,
 }
 
 #[derive(Debug, BinRead, Clone)]
