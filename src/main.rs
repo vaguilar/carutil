@@ -29,13 +29,6 @@ fn main() -> Result<()> {
             .iter()
             .map(|n| serde_json::to_value(n))
             .collect::<Result<Vec<_>, _>>()?;
-        // values.sort_by(|a, b| {
-        //     let a_type = a.as_object().unwrap().get("AssetType").unwrap().as_str().unwrap();
-        //     let a_name = a.as_object().unwrap().get("Name").unwrap().as_str().unwrap();
-        //     let b_type = b.as_object().unwrap().get("AssetType").unwrap().as_str().unwrap();
-        //     let b_name = b.as_object().unwrap().get("Name").unwrap().as_str().unwrap();
-        //     (a_type, a_name).cmp(&(b_type, b_name))
-        // });
         let mut result: Vec<serde_json::Value> = vec![header];
         result.append(&mut values);
 

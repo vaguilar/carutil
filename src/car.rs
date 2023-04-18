@@ -6,6 +6,7 @@ use num_derive::FromPrimitive;
 use serde::{Serialize, Serializer};
 
 use crate::string::{String128, String4};
+use crate::structs::renditions::CUIRendition;
 
 #[derive(Debug, BinRead)]
 #[brw(little)]
@@ -156,8 +157,7 @@ pub struct CSIHeader {
     pub csibitmaplist: CSIBitmapList,
     #[br(count = csibitmaplist.tlv_length)]
     pub tlv_data: Vec<u8>,
-    #[br(count = csibitmaplist.rendition_length)]
-    pub rendition_data: Vec<u8>,
+    pub rendition_data: CUIRendition,
 }
 
 #[derive(BinRead, Debug)]
@@ -234,6 +234,7 @@ pub enum RenditionType {
 #[derive(BinRead, Debug, Clone, Copy)]
 #[br(repr(u32))]
 pub enum EXIFOrientationValue {
+    None = 0,
     Normal = 1,
     Mirrored = 2,
     Rotated180 = 3,
@@ -344,21 +345,6 @@ enum CoreThemeImageSubtype {
     CoreThemeNinePartEdgesOnly = 34,
     CoreThemeManyPartLayoutUnknown = 40,
     CoreThemeAnimationFilmstrip = 50,
-}
-
-// ???
-#[derive(Debug, BinRead)]
-#[brw(little)]
-pub struct Facet {
-    a: u32,
-    b: u16,
-    c: u16,
-    d: u16,
-    e: u16,
-    f: u16,
-    g: u16,
-    i: u8,
-    j: u8,
 }
 
 #[derive(Debug)]

@@ -19,10 +19,10 @@ use std::{
     fs,
     io::{Cursor, Read},
     iter::zip,
-    ptr::read,
 };
 
-use crate::car::{Facet, HexString22, HexString36, RenditionKeyToken, RenditionType, TLVStruct};
+use crate::car::{HexString22, HexString36, RenditionKeyToken, RenditionType, TLVStruct};
+use crate::structs::renditions::CUIRendition;
 
 pub mod bom;
 pub mod car;
@@ -130,6 +130,8 @@ impl TryFrom<&str> for AssetCatalog {
         let mut renditions: Vec<(CSIHeader, [u16; 18])> = vec![];
         let mut facet_keys: Vec<(RenditionKeyToken, String)> = vec![];
         let mut bitmap_keys: Vec<(HexString22, u32)> = vec![];
+        let mut sha1_digests: Vec<String> = vec![]; // actually sha256 of rendition struct
+        let mut rendition_sizes: Vec<u32> = vec![];
 
         for BOMVar {
             index,
@@ -183,12 +185,26 @@ impl TryFrom<&str> for AssetCatalog {
                         let csi_header = CSIHeader::read(&mut cursor)?;
                         // dbg!(&csi_header);
 
+                        // value is key but we might not know the key format yet
                         let value_index = index1 as usize;
                         let value_pointer = &bom_header.index_header.pointers[value_index];
                         cursor.set_position(value_pointer.address as u64);
                         let value = <[u16; 18]>::read_le(&mut cursor)?;
                         // dbg!(&value);
                         renditions.push((csi_header.clone(), value));
+
+                        // compute sha256 of struct + rendition data + tlv
+                        let struct_size = 184 + csi_header.csibitmaplist.rendition_length + csi_header.csibitmaplist.tlv_length;
+                        rendition_sizes.push(struct_size);
+                        cursor.set_position(addr);
+                        let mut temp_vec = Vec::new();
+                        temp_vec.resize(struct_size as usize, 0u8);
+                        cursor.read(&mut temp_vec)?;
+                        let mut hasher = Sha256::new();
+                        hasher.update(temp_vec);
+                        let sha1_digest: String = hasher.finalize().to_vec().as_slice().encode_hex_upper();
+                        dbg!(&sha1_digest, struct_size);
+                        sha1_digests.push(sha1_digest);
                     }
                 }
                 "FACETKEYS" => {
@@ -257,10 +273,10 @@ impl TryFrom<&str> for AssetCatalog {
             .flatten()
             .collect();
 
-        for (csi_header, key) in renditions {
+        for ((csi_header, key), (sha1_digest, size_on_disk)) in zip(renditions, zip(sha1_digests, rendition_sizes)) {
             // decode key
             let key = parse_key(&key, &header.key_format);
-            dbg!(&key);
+            // dbg!(&key);
             let name_identifier_pair = key.iter().find(|(rendition_attribute_type, _value)| {
                 *rendition_attribute_type == RenditionAttributeType::Identifier
             });
@@ -287,11 +303,58 @@ impl TryFrom<&str> for AssetCatalog {
                 }
             }
 
-            // SHA-1 key is actually SHA-256 of rendition data?
-            let mut hasher = Sha256::new();
-            hasher.update(csi_header.rendition_data);
-            let sha1_digest: Vec<u8> = hasher.finalize().to_vec();
-            let sha1_digest = sha1_digest.as_slice().encode_hex_upper();
+            match csi_header.rendition_data {
+                CUIRendition::RawData {
+                    version,
+                    _raw_data_length,
+                    raw_data,
+                } => {
+                    dbg!("RAWD");
+                    dbg!(version);
+                    dbg!(_raw_data_length);
+                    dbg!("asdf", &raw_data[0..4]);
+                }
+                CUIRendition::CELM {
+                    version,
+                    compression_type,
+                    _raw_data_length,
+                    raw_data,
+                } => {
+                    dbg!("CELM");
+                    // dbg!(tag);
+                    dbg!(compression_type);
+                    dbg!(_raw_data_length);
+                    // dbg!("CELM", &raw_data[0..8]);
+                }
+                CUIRendition::Color {
+                    version,
+                    color_space,
+                    component_count,
+                    components,
+                } => {
+                    dbg!("Color");
+                    // dbg!(tag);
+                    // dbg!(version);
+                    dbg!(&components);
+                },
+                CUIRendition::MSIS { version, sizes_count, raw_data } => {
+                    dbg!("MSIS");
+                    // dbg!(tag);
+                    dbg!(sizes_count);
+                    dbg!(raw_data);
+                },
+                CUIRendition::Unknown {
+                    tag,
+                    version,
+                    _raw_data_length,
+                    // raw_data,
+                } => {
+                    dbg!("Unknown");
+                    dbg!(tag);
+                    dbg!(version);
+                    dbg!(_raw_data_length);
+                }
+            }
 
             // TODO: fix hardcoded
             let common = AssetCatalogAssetCommon {
@@ -304,7 +367,7 @@ impl TryFrom<&str> for AssetCatalog {
                 name_identifier,
                 sha1_digest,
                 scale: csi_header.scale_factor.clone(),
-                size_on_disk: csi_header.csibitmaplist.rendition_length,
+                size_on_disk,
                 value: "Off".to_string(),
             };
 
@@ -350,6 +413,7 @@ impl TryFrom<&str> for AssetCatalog {
                 ),
             };
             assets.push(asset);
+            dbg!("");
         }
 
         assets.sort_by(|a, b| {
@@ -427,12 +491,4 @@ fn parse_key(blob: &[u16], keys: &[RenditionAttributeType]) -> Vec<(RenditionAtt
 }
 
 #[cfg(test)]
-mod tests {
-    // use super::*;
-
-    #[test]
-    fn it_works() {
-        // let result = add(2, 2);
-        // assert_eq!(result, 4);
-    }
-}
+mod test;
