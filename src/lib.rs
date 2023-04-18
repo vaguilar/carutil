@@ -194,7 +194,9 @@ impl TryFrom<&str> for AssetCatalog {
                         renditions.push((csi_header.clone(), value));
 
                         // compute sha256 of struct + rendition data + tlv
-                        let struct_size = 184 + csi_header.csibitmaplist.rendition_length + csi_header.csibitmaplist.tlv_length;
+                        let struct_size = 184
+                            + csi_header.csibitmaplist.rendition_length
+                            + csi_header.csibitmaplist.tlv_length;
                         rendition_sizes.push(struct_size);
                         cursor.set_position(addr);
                         let mut temp_vec = Vec::new();
@@ -202,7 +204,8 @@ impl TryFrom<&str> for AssetCatalog {
                         cursor.read(&mut temp_vec)?;
                         let mut hasher = Sha256::new();
                         hasher.update(temp_vec);
-                        let sha1_digest: String = hasher.finalize().to_vec().as_slice().encode_hex_upper();
+                        let sha1_digest: String =
+                            hasher.finalize().to_vec().as_slice().encode_hex_upper();
                         dbg!(&sha1_digest, struct_size);
                         sha1_digests.push(sha1_digest);
                     }
@@ -273,7 +276,9 @@ impl TryFrom<&str> for AssetCatalog {
             .flatten()
             .collect();
 
-        for ((csi_header, key), (sha1_digest, size_on_disk)) in zip(renditions, zip(sha1_digests, rendition_sizes)) {
+        for ((csi_header, key), (sha1_digest, size_on_disk)) in
+            zip(renditions, zip(sha1_digests, rendition_sizes))
+        {
             // decode key
             let key = parse_key(&key, &header.key_format);
             // dbg!(&key);
@@ -336,13 +341,17 @@ impl TryFrom<&str> for AssetCatalog {
                     // dbg!(tag);
                     // dbg!(version);
                     dbg!(&components);
-                },
-                CUIRendition::MSIS { version, sizes_count, raw_data } => {
+                }
+                CUIRendition::MSIS {
+                    version,
+                    sizes_count,
+                    raw_data,
+                } => {
                     dbg!("MSIS");
                     // dbg!(tag);
                     dbg!(sizes_count);
                     dbg!(raw_data);
-                },
+                }
                 CUIRendition::Unknown {
                     tag,
                     version,
