@@ -20,6 +20,8 @@ use std::{
     io::{Cursor, Read},
     iter::zip,
 };
+use structs::renditions::CompressionType;
+use structs::renditions::State;
 
 use crate::car::{HexString22, HexString36, RenditionKeyToken, RenditionType, TLVStruct};
 use crate::structs::renditions::CUIRendition;
@@ -96,8 +98,12 @@ pub enum AssetCatalogAsset {
     Data {
         #[serde(flatten)]
         common: AssetCatalogAssetCommon,
+        #[serde(rename(serialize = "Compression"))]
+        compression: CompressionType,
         #[serde(rename(serialize = "Data Length"))]
         data_length: u32,
+        #[serde(rename(serialize = "State"))]
+        state: State,
         #[serde(rename(serialize = "UTI"))]
         uti: String,
     },
@@ -393,13 +399,13 @@ impl TryFrom<&str> for AssetCatalog {
                         color_components: [1.0, 0.0, 0.0, 0.5], // TODO: fix
                     }
                 }
-                RenditionLayoutType::Data => {
-                    AssetCatalogAsset::Data {
-                        common: common,
-                        data_length: data_length,
-                        uti: uti,
-                    }
-                }
+                RenditionLayoutType::Data => AssetCatalogAsset::Data {
+                    common: common,
+                    compression: CompressionType::Uncompressed,
+                    data_length: data_length,
+                    state: State::Normal,
+                    uti: uti,
+                },
                 RenditionLayoutType::Image => {
                     AssetCatalogAsset::Image {
                         common: common,

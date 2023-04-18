@@ -1,4 +1,5 @@
 use binrw::BinRead;
+use serde::Serialize;
 
 #[derive(Debug, BinRead, Clone)]
 pub enum CUIRendition {
@@ -77,4 +78,42 @@ pub enum CompressionType {
     ASTC,
     PaletteImg,
     DeepMapLZFSE,
+}
+
+impl Serialize for CompressionType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let compression_type_str = match self {
+            CompressionType::Uncompressed => "uncompressed",
+            CompressionType::RLE => todo!(),
+            CompressionType::ZIP => todo!(),
+            CompressionType::LZVN => todo!(),
+            CompressionType::LZFSE => "lzfse",
+            CompressionType::JPEGLZFSE => todo!(),
+            CompressionType::Blurred => todo!(),
+            CompressionType::ASTC => todo!(),
+            CompressionType::PaletteImg => todo!(),
+            CompressionType::DeepMapLZFSE => todo!(),
+        };
+        serializer.serialize_str(compression_type_str)
+    }
+}
+
+#[derive(Debug)]
+pub enum State {
+    Normal,
+}
+
+impl Serialize for State {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let state_str = match self {
+            State::Normal => "Normal",
+        };
+        serializer.serialize_str(state_str)
+    }
 }
