@@ -95,7 +95,7 @@ impl Serialize for CompressionType {
             CompressionType::Blurred => todo!(),
             CompressionType::ASTC => todo!(),
             CompressionType::PaletteImg => todo!(),
-            CompressionType::DeepMapLZFSE => todo!(),
+            CompressionType::DeepMapLZFSE => "deepmap2",
         };
         serializer.serialize_str(compression_type_str)
     }
