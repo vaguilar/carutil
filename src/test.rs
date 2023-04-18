@@ -47,6 +47,37 @@ fn header_simple() {
 }
 
 #[test]
+fn data_simple() {
+    let expected_rendition = json!({
+      "AssetType": "Data",
+      "Compression": "uncompressed",
+      "Data Length": 14,
+      "Idiom": "universal",
+      "Name": "MyText",
+      "NameIdentifier": 37430,
+      "Scale": 1,
+      "SHA1Digest": "D1A38F18DBBEB13BE04B7D5B55A36F3B6636ECF4007129E375D4A15AA45E9CDD",
+      "SizeOnDisk": 238,
+      "State": "Normal",
+      "UTI": "UTI-Unknown",
+      "Value": "Off"
+    });
+
+    let asset_catalog = AssetCatalog::try_from(CAR_PATH).expect("Unable to parse Assets.car");
+    let image = asset_catalog
+        .assets
+        .into_iter()
+        .find(|asset| match asset {
+            AssetCatalogAsset::Data { common, .. } => common.name == "MyText",
+            _ => false,
+        })
+        .expect("Couldn't find asset for test");
+    let rendition = serde_json::to_value(image).expect("Unable to serialize output");
+
+    assert_json_eq!(rendition, expected_rendition);
+}
+
+#[test]
 fn rendition_simple() {
     let expected_rendition = json!({
       "AssetType": "Image",

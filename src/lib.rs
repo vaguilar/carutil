@@ -312,6 +312,7 @@ impl TryFrom<&str> for AssetCatalog {
                 }
             }
 
+            let mut data_length: u32 = 0;
             match csi_header.rendition_data {
                 CUIRendition::RawData {
                     version,
@@ -322,6 +323,7 @@ impl TryFrom<&str> for AssetCatalog {
                     dbg!(version);
                     dbg!(_raw_data_length);
                     dbg!("asdf", &raw_data[0..4]);
+                    data_length = _raw_data_length;
                 }
                 CUIRendition::CELM {
                     version,
@@ -394,7 +396,7 @@ impl TryFrom<&str> for AssetCatalog {
                 RenditionLayoutType::Data => {
                     AssetCatalogAsset::Data {
                         common: common,
-                        data_length: 0, // TODO: fix
+                        data_length: data_length,
                         uti: uti,
                     }
                 }
