@@ -29,6 +29,9 @@ pub mod car;
 pub mod string;
 pub mod structs;
 
+// version of the assetutil tool, this is hardcoded to match current version
+static VERSION: f64 = 804.3;
+
 #[derive(Debug)]
 pub struct AssetCatalog {
     pub header: AssetCatalogHeader,
@@ -44,7 +47,7 @@ pub struct AssetCatalogHeader {
     #[serde(rename(serialize = "CoreUIVersion"))]
     pub core_ui_version: u32,
     #[serde(rename(serialize = "DumpToolVersion"))]
-    pub dump_tool_version: f32,
+    pub dump_tool_version: f64,
     #[serde(rename(serialize = "Key Format"))]
     pub key_format: Vec<RenditionAttributeType>,
     #[serde(rename(serialize = "MainVersion"))]
@@ -149,6 +152,7 @@ impl TryFrom<&str> for AssetCatalog {
 
                     header.asset_storage_version = car_header.version_string.0.to_string();
                     header.core_ui_version = car_header.core_ui_version;
+                    header.dump_tool_version = VERSION;
                     header.main_version_string = car_header.main_version_string.0.to_string();
                     header.storage_version = car_header.storage_version;
                     header.schema_version = car_header.schema_version;
