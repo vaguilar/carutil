@@ -97,3 +97,9 @@ pub enum TemplateMode {
     #[serde(rename = "automatic")]
     Automatic,
 }
+
+#[derive(Debug, Serialize)]
+pub enum Value {
+    Off = 0,
+    On = 1,
+}

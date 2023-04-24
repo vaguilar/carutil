@@ -41,6 +41,7 @@ use crate::car::RenditionType;
 use crate::structs::renditions::CUIRendition;
 use crate::structs::renditions::Idiom;
 use crate::structs::renditions::TemplateMode;
+use crate::structs::renditions::Value;
 
 pub mod bom;
 pub mod car;
@@ -58,6 +59,9 @@ pub struct AssetCatalog {
 
 #[derive(Debug, Default, Serialize)]
 pub struct AssetCatalogHeader {
+    #[serde(rename(serialize = "Appearances"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub appearances: Option<HashMap<String, u32>>,
     #[serde(rename(serialize = "AssetStorageVersion"))]
     pub asset_storage_version: String,
     #[serde(rename(serialize = "Authoring Tool"))]
@@ -86,6 +90,9 @@ pub struct AssetCatalogHeader {
 pub struct AssetCatalogAssetCommon {
     #[serde(rename(serialize = "AssetType"))]
     pub asset_type: RenditionLayoutType,
+    #[serde(rename(serialize = "Appearance"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub appearance: Option<String>,
     #[serde(rename(serialize = "Idiom"))]
     pub idiom: Idiom,
     #[serde(rename(serialize = "Name"))]
@@ -98,8 +105,12 @@ pub struct AssetCatalogAssetCommon {
     pub sha1_digest: String,
     #[serde(rename(serialize = "SizeOnDisk"))]
     pub size_on_disk: u32,
+    #[serde(rename(serialize = "Subtype"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subtype: Option<u32>,
     #[serde(rename(serialize = "Value"))]
-    pub value: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<Value>,
 }
 
 #[derive(Debug, Serialize)]
@@ -113,7 +124,8 @@ pub enum AssetCatalogAsset {
         #[serde(rename(serialize = "Colorspace"))]
         color_space: ColorSpace,
         #[serde(rename(serialize = "State"))]
-        state: State,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        state: Option<State>,
     },
     Data {
         #[serde(flatten)]
@@ -123,7 +135,8 @@ pub enum AssetCatalogAsset {
         #[serde(rename(serialize = "Data Length"))]
         data_length: u32,
         #[serde(rename(serialize = "State"))]
-        state: State,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        state: Option<State>,
         #[serde(rename(serialize = "UTI"))]
         uti: String,
     },
@@ -149,7 +162,8 @@ pub enum AssetCatalogAsset {
         #[serde(rename(serialize = "PixelWidth"))]
         pixel_width: u32,
         #[serde(rename(serialize = "State"))]
-        state: State,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        state: Option<State>,
         #[serde(rename(serialize = "Template Mode"))]
         template_mode: TemplateMode,
     },
@@ -187,7 +201,7 @@ impl TryFrom<&str> for AssetCatalog {
 
         let mut header: AssetCatalogHeader = Default::default();
         let mut renditions: Vec<(CSIHeader, [u16; 18])> = vec![];
-        let mut appearence_keys: Vec<(u32, String)> = vec![];
+        let mut appearance_keys: HashMap<u32, String> = HashMap::new();
         let mut facet_keys: Vec<(RenditionKeyToken, String)> = vec![];
         let mut bitmap_keys: Vec<(HexString22, u32)> = vec![];
         let mut sha1_digests: Vec<String> = vec![]; // actually sha256 of rendition struct
@@ -325,8 +339,15 @@ impl TryFrom<&str> for AssetCatalog {
                             binrw::Endian::Little,
                             (),
                         )?;
-                        appearence_keys.push((key, value));
+                        appearance_keys.insert(key, value);
                     }
+
+                    header.appearances = Some(
+                        appearance_keys
+                            .iter()
+                            .map(|(k, v)| (v.clone(), *k))
+                            .collect(),
+                    );
                 }
                 _ => {
                     eprintln!(
@@ -338,7 +359,7 @@ impl TryFrom<&str> for AssetCatalog {
             }
         }
 
-        dbg!(&appearence_keys);
+        dbg!(&appearance_keys);
 
         // decode rendition keys
         let mut assets = vec![];
@@ -379,6 +400,34 @@ impl TryFrom<&str> for AssetCatalog {
             if let Some(value) = key.get(&RenditionAttributeType::Idiom) {
                 if let Some(i) = num::FromPrimitive::from_u16(*value) {
                     idiom = i;
+                }
+            }
+            let mut appearance: Option<String> = None;
+            if let Some(value) = key.get(&RenditionAttributeType::Appearance) {
+                let key = *value as u32;
+                if key > 0 {
+                    appearance = appearance_keys.get(&key).cloned();
+                }
+            }
+            let mut subtype: Option<u32> = None;
+            if let Some(value) = key.get(&RenditionAttributeType::Subtype) {
+                if *value > 0 {
+                    subtype = Some(*value as u32);
+                }
+            }
+            let mut value: Option<Value> = None;
+            if let Some(v) = key.get(&RenditionAttributeType::Value) {
+                match *v {
+                    0 => value = Some(Value::Off),
+                    1 => value = Some(Value::On),
+                    _ => {}
+                }
+            }
+            let mut state: Option<State> = None;
+            if let Some(value) = key.get(&RenditionAttributeType::State) {
+                match *value {
+                    0 => state = Some(State::Normal),
+                    _ => {}
                 }
             }
 
@@ -457,19 +506,20 @@ impl TryFrom<&str> for AssetCatalog {
                 }
             }
 
-            // TODO: fix hardcoded
             let common = AssetCatalogAssetCommon {
                 asset_type: csi_header.csimetadata.layout,
+                appearance,
                 idiom,
                 name: name_identifier_to_name
                     .get(&name_identifier)
                     .map(|s| s.to_owned())
                     .unwrap_or_default(),
                 name_identifier,
-                sha1_digest,
                 scale: csi_header.scale_factor.clone(),
+                sha1_digest,
                 size_on_disk,
-                value: "Off".to_string(),
+                subtype,
+                value,
             };
 
             let asset = match csi_header.csimetadata.layout {
@@ -489,7 +539,6 @@ impl TryFrom<&str> for AssetCatalog {
                             } else {
                                 csi_header.color_space
                             };
-                            let state = State::Normal; // TODO: fix
                             AssetCatalogAsset::Color {
                                 common: common,
                                 color_components: components
@@ -507,7 +556,7 @@ impl TryFrom<&str> for AssetCatalog {
                     common: common,
                     compression: CompressionType::Uncompressed,
                     data_length: data_length,
-                    state: State::Normal, // TODO: fix
+                    state,
                     uti: uti,
                 },
                 RenditionLayoutType::Image => {
@@ -531,7 +580,7 @@ impl TryFrom<&str> for AssetCatalog {
                                 rendition_name: format!("{:?}", csi_header.csimetadata.name),
                                 pixel_height: csi_header.height,
                                 pixel_width: csi_header.width,
-                                state: State::Normal, // TODO: fix
+                                state,
                                 template_mode: TemplateMode::Automatic, // TODO: fix
                             }
                         }
@@ -555,7 +604,7 @@ impl TryFrom<&str> for AssetCatalog {
                                 rendition_name: format!("{:?}", csi_header.csimetadata.name),
                                 pixel_height: csi_header.height,
                                 pixel_width: csi_header.width,
-                                state: State::Normal, // TODO: fix
+                                state,
                                 template_mode: TemplateMode::Automatic, // TODO: fix
                             }
                         }
@@ -576,7 +625,7 @@ impl TryFrom<&str> for AssetCatalog {
                         rendition_name: format!("{:?}", csi_header.csimetadata.name),
                         pixel_height: csi_header.height,
                         pixel_width: csi_header.width,
-                        state: State::Normal,                   // TODO: fix
+                        state,
                         template_mode: TemplateMode::Automatic, // TODO: fix
                     }
                 }
@@ -658,7 +707,6 @@ fn parse_key(
     let mut result = HashMap::new();
 
     for (key, value) in zip(keys, blob) {
-        // result.push((*key, *value));
         result.insert(*key, *value);
     }
 
