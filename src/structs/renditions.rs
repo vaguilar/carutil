@@ -13,7 +13,9 @@ pub enum CUIRendition {
     #[br(magic = b"RLOC")]
     Color {
         version: u32,
-        color_space: u32,
+        color_space: u8,
+        _padding: u8,
+        _reserved: u16,
         component_count: u32,
         #[br(count = component_count)]
         components: Vec<f64>,
@@ -34,7 +36,7 @@ pub enum CUIRendition {
         sizes_count: u32,
         // a: [u8; 24],
         #[br(count = sizes_count)]
-        raw_data: Vec<MSISEntry>,
+        entries: Vec<MSISEntry>,
     },
     Unknown {
         tag: u32,

@@ -264,7 +264,17 @@ pub struct RenditionFlags {
     _reserved: u32,
 }
 
-type ColorSpace = u32; // colorSpaceID:4, reserved:28
+#[derive(BinRead, Clone)]
+#[br(repr(u32))]
+pub enum ColorSpace {
+    SRGB = 0,
+    GrayGamma2_2,
+    DisplayP3,
+    ExtendedRangeSRGB,
+    ExtendedLinearSRGB,
+    ExtendedGray,
+    Unknown = 14,
+}
 
 #[derive(BinRead, Debug, Clone)]
 #[br(repr(u32))]
@@ -305,6 +315,20 @@ impl Serialize for Scale {
             Scale::X1 => serializer.serialize_u32(1),
             Scale::X2 => serializer.serialize_u32(2),
             Scale::X3 => serializer.serialize_u32(3),
+        }
+    }
+}
+
+impl fmt::Debug for ColorSpace {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ColorSpace::SRGB => write!(f, "srgb"),
+            ColorSpace::GrayGamma2_2 => write!(f, "graygamma2_2"),
+            ColorSpace::DisplayP3 => write!(f, "displayp3"),
+            ColorSpace::ExtendedRangeSRGB => write!(f, "extendedrangesrgb"),
+            ColorSpace::ExtendedLinearSRGB => write!(f, "extendedlinearsrgb"),
+            ColorSpace::ExtendedGray => write!(f, "extendedgray"),
+            ColorSpace::Unknown => write!(f, "unknown"),
         }
     }
 }

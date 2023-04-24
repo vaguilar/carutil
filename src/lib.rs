@@ -15,6 +15,8 @@ use car::RenditionLayoutType;
 use car::Scale;
 use hex::ToHex;
 use memmap::Mmap;
+use num::One;
+use num::Zero;
 use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
@@ -29,6 +31,7 @@ use std::iter::zip;
 use structs::renditions::CompressionType;
 use structs::renditions::State;
 
+use crate::car::ColorSpace;
 use crate::car::HexString22;
 use crate::car::RenditionKeyToken;
 use crate::car::RenditionType;
@@ -101,7 +104,11 @@ pub enum AssetCatalogAsset {
         #[serde(flatten)]
         common: AssetCatalogAssetCommon,
         #[serde(rename(serialize = "Color components"))]
-        color_components: [f32; 4],
+        color_components: Vec<ColorComponent>,
+        #[serde(rename(serialize = "Colorspace"))]
+        color_space: String,
+        #[serde(rename(serialize = "State"))]
+        state: String,
     },
     Data {
         #[serde(flatten)]
@@ -129,6 +136,24 @@ pub enum AssetCatalogAsset {
         #[serde(rename(serialize = "PixelWidth"))]
         pixel_width: u32,
     },
+}
+
+// assetutil outputs whole numbers for 0 and 1 (no decimal), but everything else
+// seems to have a fractional part
+#[derive(Debug)]
+pub struct ColorComponent(f64);
+
+impl Serialize for ColorComponent {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self.0 {
+            c if c.is_zero() => serializer.serialize_u32(0),
+            c if c.is_one() => serializer.serialize_u32(1),
+            c => serializer.serialize_f64(c),
+        }
+    }
 }
 
 impl TryFrom<&str> for AssetCatalog {
@@ -327,7 +352,7 @@ impl TryFrom<&str> for AssetCatalog {
             }
 
             let mut data_length: u32 = 0;
-            match csi_header.rendition_data {
+            match &csi_header.rendition_data {
                 CUIRendition::RawData {
                     version,
                     _raw_data_length,
@@ -337,7 +362,7 @@ impl TryFrom<&str> for AssetCatalog {
                     dbg!(version);
                     dbg!(_raw_data_length);
                     dbg!("asdf", &raw_data[0..4]);
-                    data_length = _raw_data_length;
+                    data_length = *_raw_data_length;
                 }
                 CUIRendition::CELM {
                     version,
@@ -354,23 +379,26 @@ impl TryFrom<&str> for AssetCatalog {
                 CUIRendition::Color {
                     version,
                     color_space,
+                    _padding,
+                    _reserved,
                     component_count,
                     components,
                 } => {
                     dbg!("Color");
                     // dbg!(tag);
                     // dbg!(version);
+                    dbg!(&color_space);
                     dbg!(&components);
                 }
                 CUIRendition::MSIS {
                     version,
                     sizes_count,
-                    raw_data,
+                    entries,
                 } => {
                     dbg!("MSIS");
                     // dbg!(tag);
                     dbg!(sizes_count);
-                    dbg!(raw_data);
+                    dbg!(entries);
                 }
                 CUIRendition::Unknown {
                     tag,
@@ -402,9 +430,33 @@ impl TryFrom<&str> for AssetCatalog {
 
             let asset = match csi_header.csimetadata.layout {
                 RenditionLayoutType::Color => {
-                    AssetCatalogAsset::Color {
-                        common: common,
-                        color_components: [1.0, 0.0, 0.0, 0.5], // TODO: fix
+                    match csi_header.rendition_data {
+                        CUIRendition::Color {
+                            version,
+                            color_space,
+                            _padding,
+                            _reserved,
+                            component_count,
+                            components,
+                        } => {
+                            // not sure this is right
+                            let color_space = if component_count == 4 {
+                                format!("{:?}", ColorSpace::SRGB)
+                            } else {
+                                format!("{:?}", csi_header.color_space)
+                            };
+                            let state = "Normal".to_string(); // TODO: fix
+                            AssetCatalogAsset::Color {
+                                common: common,
+                                color_components: components
+                                    .into_iter()
+                                    .map(|c| ColorComponent(c))
+                                    .collect(),
+                                color_space,
+                                state,
+                            }
+                        }
+                        _ => panic!("unexpected rendition type"),
                     }
                 }
                 RenditionLayoutType::Data => AssetCatalogAsset::Data {
