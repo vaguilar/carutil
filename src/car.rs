@@ -55,7 +55,7 @@ pub struct KeyFormat {
     pub attribute_types: Vec<RenditionAttributeType>,
 }
 
-#[derive(Debug, BinRead, FromPrimitive, Clone, Copy, PartialEq)]
+#[derive(Debug, BinRead, FromPrimitive, Clone, Copy, PartialEq, Eq, Hash)]
 #[br(repr(u32))]
 pub enum RenditionAttributeType {
     Look = 0,
@@ -269,8 +269,15 @@ pub struct RenditionFlags {
 }
 
 impl RenditionFlags {
-    pub fn is_opaque(self) -> bool {
+    pub fn is_opaque(&self) -> bool {
         ((self.flags >> 3) & 1) != 0
+    }
+
+    pub fn bitmap_encoding(&self) -> &str {
+        match (self.flags >> 4) & 0b1111  {
+            1 => "RGB",
+            _ => "???",
+        }
     }
 }
 
@@ -292,7 +299,7 @@ pub enum ColorSpace {
     Unknown = 14,
 }
 
-#[derive(BinRead, Debug, Clone)]
+#[derive(BinRead, Debug, Clone, Serialize)]
 #[br(repr(u32))]
 pub enum PixelFormat {
     None = 0,
@@ -357,8 +364,9 @@ pub enum RenditionLayoutType {
     RecognitionObject = 0x3F6,
 }
 
-#[repr(u32)]
-enum CoreThemeImageSubtype {
+#[derive(Debug, BinRead, FromPrimitive, Clone, Copy, PartialEq)]
+#[br(repr(u32))]
+pub enum CoreThemeImageSubtype {
     CoreThemeOnePartFixedSize = 10,
     CoreThemeOnePartTile = 11,
     CoreThemeOnePartScale = 12,

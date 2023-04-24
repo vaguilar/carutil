@@ -10,6 +10,7 @@ use car::CSIHeader;
 use car::CarExtendedMetadata;
 use car::CarHeader;
 use car::KeyFormat;
+use car::PixelFormat;
 use car::RenditionAttributeType;
 use car::RenditionLayoutType;
 use car::Scale;
@@ -23,6 +24,7 @@ use sha2::Sha256;
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs;
 use std::io::Cursor;
@@ -36,6 +38,7 @@ use crate::car::HexString22;
 use crate::car::RenditionKeyToken;
 use crate::car::RenditionType;
 use crate::structs::renditions::CUIRendition;
+use crate::structs::renditions::TemplateMode;
 
 pub mod bom;
 pub mod car;
@@ -134,7 +137,7 @@ pub enum AssetCatalogAsset {
         #[serde(rename(serialize = "Compression"))]
         compression: CompressionType,
         #[serde(rename(serialize = "Encoding"))]
-        encoding: String,
+        encoding: PixelFormat,
         #[serde(rename(serialize = "Opaque"))]
         opaque: bool,
         #[serde(rename(serialize = "RenditionName"))]
@@ -145,6 +148,8 @@ pub enum AssetCatalogAsset {
         pixel_width: u32,
         #[serde(rename(serialize = "State"))]
         state: State,
+        #[serde(rename(serialize = "Template Mode"))]
+        template_mode: TemplateMode,
     },
 }
 
@@ -333,14 +338,10 @@ impl TryFrom<&str> for AssetCatalog {
         {
             // decode key
             let key = parse_key(&key, &header.key_format);
-            // dbg!(&key);
-            let name_identifier_pair = key.iter().find(|(rendition_attribute_type, _value)| {
-                *rendition_attribute_type == RenditionAttributeType::Identifier
-            });
-
+            dbg!(&key);
             let name_identifier: u16;
-            if let Some((_, n_id)) = name_identifier_pair {
-                name_identifier = *n_id;
+            if let Some(nid) = key.get(&RenditionAttributeType::Identifier) {
+                name_identifier = *nid;
                 dbg!(&csi_header.csimetadata.name, name_identifier);
             } else {
                 eprintln!("unable to find name identifier for {:?}", csi_header);
@@ -485,15 +486,16 @@ impl TryFrom<&str> for AssetCatalog {
                             AssetCatalogAsset::Image {
                                 common: common,
                                 bits_per_component: 8, // TODO: fix
-                                color_model: format!("{:?}", csi_header.color_space),
+                                color_model: csi_header.rendition_flags.bitmap_encoding().to_string(),
                                 color_space: csi_header.color_space,
                                 compression: CompressionType::Uncompressed,
-                                encoding: format!("{:?}", csi_header.pixel_format),
+                                encoding: csi_header.pixel_format,
                                 opaque: csi_header.rendition_flags.is_opaque(),
                                 rendition_name: format!("{:?}", csi_header.csimetadata.name),
                                 pixel_height: csi_header.height,
                                 pixel_width: csi_header.width,
                                 state: State::Normal, // TODO: fix
+                                template_mode: TemplateMode::Automatic, // TODO: fix
                             }
                         }
                         CUIRendition::CELM {
@@ -505,15 +507,16 @@ impl TryFrom<&str> for AssetCatalog {
                             AssetCatalogAsset::Image {
                                 common: common,
                                 bits_per_component: 8, // TODO: fix
-                                color_model: format!("{:?}", csi_header.color_space),
-                                color_space: csi_header.color_space,
+                                color_model: csi_header.rendition_flags.bitmap_encoding().to_string(),
+                                color_space: ColorSpace::SRGB, // TODO: fix
                                 compression: compression_type.to_owned(),
-                                encoding: format!("{:?}", csi_header.pixel_format),
+                                encoding: csi_header.pixel_format,
                                 opaque: csi_header.rendition_flags.is_opaque(),
                                 rendition_name: format!("{:?}", csi_header.csimetadata.name),
                                 pixel_height: csi_header.height,
                                 pixel_width: csi_header.width,
                                 state: State::Normal, // TODO: fix
+                                template_mode: TemplateMode::Automatic, // TODO: fix
                             }
                         }
                         _ => panic!("unexpected rendition type: {:?}", csi_header.rendition_data),
@@ -525,15 +528,16 @@ impl TryFrom<&str> for AssetCatalog {
                     AssetCatalogAsset::Image {
                         common: common,
                         bits_per_component: 8, // TODO: fix
-                        color_model: format!("{:?}", csi_header.rendition_flags),
+                        color_model: csi_header.rendition_flags.bitmap_encoding().to_string(),
                         color_space: csi_header.color_space,
                         compression: CompressionType::Uncompressed,
-                        encoding: format!("{:?}", csi_header.pixel_format),
+                        encoding: csi_header.pixel_format,
                         opaque: csi_header.rendition_flags.is_opaque(),
                         rendition_name: format!("{:?}", csi_header.csimetadata.name),
                         pixel_height: csi_header.height,
                         pixel_width: csi_header.width,
                         state: State::Normal, // TODO: fix
+                        template_mode: TemplateMode::Automatic, // TODO: fix
                     }
                 }
                 _ => unimplemented!(
@@ -609,11 +613,12 @@ where
     Ok(result)
 }
 
-fn parse_key(blob: &[u16], keys: &[RenditionAttributeType]) -> Vec<(RenditionAttributeType, u16)> {
-    let mut result = vec![];
+fn parse_key(blob: &[u16], keys: &[RenditionAttributeType]) -> HashMap<RenditionAttributeType, u16> {
+    let mut result = HashMap::new();
 
     for (key, value) in zip(keys, blob) {
-        result.push((*key, *value));
+        // result.push((*key, *value));
+        result.insert(*key, *value);
     }
 
     result

@@ -103,19 +103,13 @@ impl Serialize for CompressionType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum State {
     Normal,
 }
 
-impl Serialize for State {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let state_str = match self {
-            State::Normal => "Normal",
-        };
-        serializer.serialize_str(state_str)
-    }
+#[derive(Debug, Serialize)]
+pub enum TemplateMode {
+    #[serde(rename = "automatic")]
+    Automatic,
 }
