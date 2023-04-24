@@ -30,6 +30,7 @@ use std::fs;
 use std::io::Cursor;
 use std::io::Read;
 use std::iter::zip;
+use std::time::UNIX_EPOCH;
 use structs::renditions::CompressionType;
 use structs::renditions::State;
 
@@ -192,6 +193,13 @@ impl TryFrom<&str> for AssetCatalog {
 
     fn try_from(file_path: &str) -> Result<Self, Self::Error> {
         let file = fs::File::open(file_path)?;
+        let file_timestamp: u32;
+        {
+            let file_metadata = file.metadata()?;
+            let modified = file_metadata.modified()?;
+            let duration = modified.duration_since(UNIX_EPOCH)?;
+            file_timestamp = duration.as_secs().try_into()?;
+        }
         let mmap = unsafe { Mmap::map(&file).expect(&format!("Error mapping file {}", file_path)) };
         let mut cursor = Cursor::new(mmap);
 
@@ -227,6 +235,10 @@ impl TryFrom<&str> for AssetCatalog {
                     header.storage_version = car_header.storage_version;
                     header.schema_version = car_header.schema_version;
                     header.timestamp = car_header.storage_timestamp;
+
+                    if header.timestamp == 0 {
+                        header.timestamp = file_timestamp;
+                    }
                 }
                 "EXTENDED_METADATA" => {
                     cursor.set_position(address);
@@ -354,7 +366,6 @@ impl TryFrom<&str> for AssetCatalog {
                         "Unknown BOMVar: name={:?}, index={}, length={}",
                         name, index, length
                     );
-                    // panic!("")
                 }
             }
         }
