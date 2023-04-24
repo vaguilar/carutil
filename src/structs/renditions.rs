@@ -1,4 +1,5 @@
 use binrw::BinRead;
+use num_derive::FromPrimitive;
 use serde::Serialize;
 
 #[derive(Debug, BinRead, Clone)]
@@ -55,8 +56,9 @@ pub struct MSISEntry {
     _idiom: Idiom,
 }
 
-#[derive(Debug, BinRead, Clone)]
+#[derive(Debug, BinRead, Clone, FromPrimitive, Serialize)]
 #[br(repr = u16)]
+#[serde(rename_all = "lowercase")]
 pub enum Idiom {
     Universal = 0,
     Phone,

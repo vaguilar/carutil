@@ -39,6 +39,7 @@ use crate::car::HexString22;
 use crate::car::RenditionKeyToken;
 use crate::car::RenditionType;
 use crate::structs::renditions::CUIRendition;
+use crate::structs::renditions::Idiom;
 use crate::structs::renditions::TemplateMode;
 
 pub mod bom;
@@ -86,7 +87,7 @@ pub struct AssetCatalogAssetCommon {
     #[serde(rename(serialize = "AssetType"))]
     pub asset_type: RenditionLayoutType,
     #[serde(rename(serialize = "Idiom"))]
-    pub idiom: String,
+    pub idiom: Idiom,
     #[serde(rename(serialize = "Name"))]
     pub name: String,
     #[serde(rename(serialize = "NameIdentifier"))]
@@ -366,12 +367,19 @@ impl TryFrom<&str> for AssetCatalog {
             let key = parse_key(&key, &header.key_format);
             dbg!(&key);
             let name_identifier: u16;
-            if let Some(nid) = key.get(&RenditionAttributeType::Identifier) {
-                name_identifier = *nid;
+            if let Some(value) = key.get(&RenditionAttributeType::Identifier) {
+                name_identifier = *value;
                 dbg!(&csi_header.csimetadata.name, name_identifier);
             } else {
                 eprintln!("unable to find name identifier for {:?}", csi_header);
                 continue;
+            }
+
+            let mut idiom: Idiom = Idiom::Universal;
+            if let Some(value) = key.get(&RenditionAttributeType::Idiom) {
+                if let Some(i) = num::FromPrimitive::from_u16(*value) {
+                    idiom = i;
+                }
             }
 
             dbg!(&csi_header.csibitmaplist);
@@ -452,7 +460,7 @@ impl TryFrom<&str> for AssetCatalog {
             // TODO: fix hardcoded
             let common = AssetCatalogAssetCommon {
                 asset_type: csi_header.csimetadata.layout,
-                idiom: "universal".to_string(),
+                idiom,
                 name: name_identifier_to_name
                     .get(&name_identifier)
                     .map(|s| s.to_owned())
