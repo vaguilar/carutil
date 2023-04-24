@@ -265,7 +265,13 @@ pub struct RenditionFlags {
     // is_flippable: u32,
     // is_tintable: u32,
     // preserved_vector_representation: u32,
-    _reserved: u32,
+    flags: u32,
+}
+
+impl RenditionFlags {
+    pub fn is_opaque(self) -> bool {
+        ((self.flags >> 3) & 1) != 0
+    }
 }
 
 #[derive(BinRead, Clone, Debug, Serialize)]
