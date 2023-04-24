@@ -47,8 +47,44 @@ fn header_simple() {
 }
 
 #[test]
+fn color_simple() {
+  let expected_color= json!({
+    "AssetType": "Color",
+    "Color components": [
+      1,
+      0,
+      0,
+      0.5
+    ],
+    "Colorspace": "srgb",
+    "Idiom": "universal",
+    "Name": "MyColor",
+    "NameIdentifier": 44959,
+    "Scale": 1,
+    "SHA1Digest": "A70B9FF64C7A53A6954EDE57F2EFA20BEB8FCC2E80CD8CF530FD9A6D4ACB4124",
+    "SizeOnDisk": 260,
+    "State": "Normal",
+    "Value": "Off"
+  });
+
+  let asset_catalog = AssetCatalog::try_from(CAR_PATH).expect("Unable to parse Assets.car");
+  let asset = asset_catalog
+      .assets
+      .into_iter()
+      .find(|asset| match asset {
+          AssetCatalogAsset::Color { common, .. } => common.name == "MyColor",
+          _ => false,
+      })
+      .expect("Couldn't find asset for test");
+  let color = serde_json::to_value(asset).expect("Unable to serialize output");
+
+  assert_json_eq!(color, expected_color);
+}
+
+
+#[test]
 fn data_simple() {
-    let expected_rendition = json!({
+    let expected_data = json!({
       "AssetType": "Data",
       "Compression": "uncompressed",
       "Data Length": 14,
@@ -64,7 +100,7 @@ fn data_simple() {
     });
 
     let asset_catalog = AssetCatalog::try_from(CAR_PATH).expect("Unable to parse Assets.car");
-    let image = asset_catalog
+    let asset = asset_catalog
         .assets
         .into_iter()
         .find(|asset| match asset {
@@ -72,14 +108,14 @@ fn data_simple() {
             _ => false,
         })
         .expect("Couldn't find asset for test");
-    let rendition = serde_json::to_value(image).expect("Unable to serialize output");
+    let data = serde_json::to_value(asset).expect("Unable to serialize output");
 
-    assert_json_eq!(rendition, expected_rendition);
+    assert_json_eq!(data, expected_data);
 }
 
 #[test]
-fn rendition_simple() {
-    let expected_rendition = json!({
+fn image_simple() {
+    let expected_image = json!({
       "AssetType": "Image",
       "BitsPerComponent": 8,
       "ColorModel": "RGB",
@@ -102,7 +138,7 @@ fn rendition_simple() {
     });
 
     let asset_catalog = AssetCatalog::try_from(CAR_PATH).expect("Unable to parse Assets.car");
-    let image = asset_catalog
+    let asset = asset_catalog
         .assets
         .into_iter()
         .find(|asset| match asset {
@@ -110,7 +146,7 @@ fn rendition_simple() {
             _ => false,
         })
         .expect("Couldn't find asset for test");
-    let rendition = serde_json::to_value(image).expect("Unable to serialize output");
+    let image = serde_json::to_value(asset).expect("Unable to serialize output");
 
-    assert_json_eq!(rendition, expected_rendition);
+    assert_json_eq!(image, expected_image);
 }
