@@ -69,8 +69,9 @@ pub enum Idiom {
     Marketing,
 }
 
-#[derive(Debug, BinRead, Clone)]
+#[derive(Debug, BinRead, Clone, Serialize)]
 #[br(repr = u32)]
+#[serde(rename_all = "lowercase")]
 pub enum CompressionType {
     Uncompressed = 0,
     RLE,
@@ -80,29 +81,10 @@ pub enum CompressionType {
     JPEGLZFSE,
     Blurred,
     ASTC,
+    #[serde(rename = "palette-img")]
     PaletteImg,
+    #[serde(rename = "deepmap2")]
     DeepMapLZFSE,
-}
-
-impl Serialize for CompressionType {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let compression_type_str = match self {
-            CompressionType::Uncompressed => "uncompressed",
-            CompressionType::RLE => todo!(),
-            CompressionType::ZIP => todo!(),
-            CompressionType::LZVN => todo!(),
-            CompressionType::LZFSE => "lzfse",
-            CompressionType::JPEGLZFSE => todo!(),
-            CompressionType::Blurred => todo!(),
-            CompressionType::ASTC => todo!(),
-            CompressionType::PaletteImg => "palette-img",
-            CompressionType::DeepMapLZFSE => "deepmap2",
-        };
-        serializer.serialize_str(compression_type_str)
-    }
 }
 
 #[derive(Debug, Serialize)]
