@@ -273,11 +273,15 @@ pub struct RenditionFlags {
 pub enum ColorSpace {
     #[serde(rename = "srgb")]
     SRGB = 0,
+    #[serde(rename = "gray gamma 22")]
     GrayGamma2_2,
-    #[serde(rename = "displayp3")]
+    #[serde(rename = "p3")]
     DisplayP3,
+    #[serde(rename = "extended srgb")]
     ExtendedRangeSRGB,
+    #[serde(rename = "extended linear srgb")]
     ExtendedLinearSRGB,
+    #[serde(rename = "extended gray")]
     ExtendedGray,
     Unknown = 14,
 }
