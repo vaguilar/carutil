@@ -106,7 +106,7 @@ pub enum AssetCatalogAsset {
         #[serde(rename(serialize = "Color components"))]
         color_components: Vec<ColorComponent>,
         #[serde(rename(serialize = "Colorspace"))]
-        color_space: String,
+        color_space: ColorSpace,
         #[serde(rename(serialize = "State"))]
         state: String,
     },
@@ -127,14 +127,24 @@ pub enum AssetCatalogAsset {
         common: AssetCatalogAssetCommon,
         #[serde(rename(serialize = "BitsPerComponent"))]
         bits_per_component: u32,
+        #[serde(rename(serialize = "ColorModel"))]
+        color_model: String,
+        #[serde(rename(serialize = "Colorspace"))]
+        color_space: ColorSpace,
+        #[serde(rename(serialize = "Compression"))]
+        compression: CompressionType,
         #[serde(rename(serialize = "Encoding"))]
         encoding: String,
+        #[serde(rename(serialize = "Opaque"))]
+        opaque: bool,
         #[serde(rename(serialize = "RenditionName"))]
         rendition_name: String,
         #[serde(rename(serialize = "PixelHeight"))]
         pixel_height: u32,
         #[serde(rename(serialize = "PixelWidth"))]
         pixel_width: u32,
+        #[serde(rename(serialize = "State"))]
+        state: String,
     },
 }
 
@@ -441,9 +451,9 @@ impl TryFrom<&str> for AssetCatalog {
                         } => {
                             // not sure this is right
                             let color_space = if component_count == 4 {
-                                format!("{:?}", ColorSpace::SRGB)
+                                ColorSpace::SRGB
                             } else {
-                                format!("{:?}", csi_header.color_space)
+                                csi_header.color_space
                             };
                             let state = "Normal".to_string(); // TODO: fix
                             AssetCatalogAsset::Color {
@@ -463,17 +473,42 @@ impl TryFrom<&str> for AssetCatalog {
                     common: common,
                     compression: CompressionType::Uncompressed,
                     data_length: data_length,
-                    state: State::Normal,
+                    state: State::Normal, // TODO: fix
                     uti: uti,
                 },
                 RenditionLayoutType::Image => {
-                    AssetCatalogAsset::Image {
-                        common: common,
-                        bits_per_component: 8, // TODO: fix
-                        encoding: format!("{:?}", csi_header.pixel_format),
-                        rendition_name: format!("{:?}", csi_header.csimetadata.name),
-                        pixel_height: csi_header.height,
-                        pixel_width: csi_header.width,
+                    match &csi_header.rendition_data {
+                        CUIRendition::RawData { version, _raw_data_length, raw_data } => {
+                            AssetCatalogAsset::Image {
+                                common: common,
+                                bits_per_component: 8, // TODO: fix
+                                color_model: format!("{:?}", csi_header.color_space),
+                                color_space: csi_header.color_space,
+                                compression: CompressionType::Uncompressed,
+                                encoding: format!("{:?}", csi_header.pixel_format),
+                                opaque: csi_header.rendition_flags.is_opaque() == 1,
+                                rendition_name: format!("{:?}", csi_header.csimetadata.name),
+                                pixel_height: csi_header.height,
+                                pixel_width: csi_header.width,
+                                state: "Normal".to_string(), // TODO: fix
+                            }
+                        },
+                        CUIRendition::CELM { version, compression_type, _raw_data_length, raw_data } => {
+                            AssetCatalogAsset::Image {
+                                common: common,
+                                bits_per_component: 8, // TODO: fix
+                                color_model: format!("{:?}", csi_header.color_space),
+                                color_space: csi_header.color_space,
+                                compression: compression_type.to_owned(),
+                                encoding: format!("{:?}", csi_header.pixel_format),
+                                opaque: csi_header.rendition_flags.is_opaque() == 1,
+                                rendition_name: format!("{:?}", csi_header.csimetadata.name),
+                                pixel_height: csi_header.height,
+                                pixel_width: csi_header.width,
+                                state: "Normal".to_string(), // TODO: fix
+                            }
+                        }
+                        _ => panic!("unexpected rendition type: {:?}", csi_header.rendition_data),
                     }
                 }
                 RenditionLayoutType::MultisizeImage
@@ -482,10 +517,15 @@ impl TryFrom<&str> for AssetCatalog {
                     AssetCatalogAsset::Image {
                         common: common,
                         bits_per_component: 8, // TODO: fix
+                        color_model: format!("{:?}", csi_header.rendition_flags),
+                        color_space: csi_header.color_space,
+                        compression: CompressionType::Uncompressed,
                         encoding: format!("{:?}", csi_header.pixel_format),
+                        opaque: csi_header.rendition_flags.is_opaque() == 1,
                         rendition_name: format!("{:?}", csi_header.csimetadata.name),
                         pixel_height: csi_header.height,
                         pixel_width: csi_header.width,
+                        state: "Normal".to_string(), // TODO: fix
                     }
                 }
                 _ => unimplemented!(

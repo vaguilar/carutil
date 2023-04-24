@@ -226,7 +226,11 @@ pub enum RenditionType {
         orientation: EXIFOrientationValue,
     },
     #[brw(magic = 0x03EFu32)]
-    IDK { _length: u32, value: u32 },
+    IDK {
+        length: u32,
+        #[br(count = length)]
+        data: Vec<u8>,
+    },
     Unknown {
         tag: u32,
         length: u32,
@@ -264,11 +268,13 @@ pub struct RenditionFlags {
     _reserved: u32,
 }
 
-#[derive(BinRead, Clone)]
+#[derive(BinRead, Clone, Debug, Serialize)]
 #[br(repr(u32))]
 pub enum ColorSpace {
+    #[serde(rename = "srgb")]
     SRGB = 0,
     GrayGamma2_2,
+    #[serde(rename = "displayp3")]
     DisplayP3,
     ExtendedRangeSRGB,
     ExtendedLinearSRGB,
@@ -315,20 +321,6 @@ impl Serialize for Scale {
             Scale::X1 => serializer.serialize_u32(1),
             Scale::X2 => serializer.serialize_u32(2),
             Scale::X3 => serializer.serialize_u32(3),
-        }
-    }
-}
-
-impl fmt::Debug for ColorSpace {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ColorSpace::SRGB => write!(f, "srgb"),
-            ColorSpace::GrayGamma2_2 => write!(f, "graygamma2_2"),
-            ColorSpace::DisplayP3 => write!(f, "displayp3"),
-            ColorSpace::ExtendedRangeSRGB => write!(f, "extendedrangesrgb"),
-            ColorSpace::ExtendedLinearSRGB => write!(f, "extendedlinearsrgb"),
-            ColorSpace::ExtendedGray => write!(f, "extendedgray"),
-            ColorSpace::Unknown => write!(f, "unknown"),
         }
     }
 }
