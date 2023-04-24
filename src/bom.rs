@@ -74,7 +74,7 @@ pub struct BOMPaths {
 }
 
 // parse strings with dynamic length
-fn dynamic_length_string_parser<R: Read + Seek>(
+pub fn dynamic_length_string_parser<R: Read + Seek>(
     length: usize,
 ) -> impl Fn(&mut R, binrw::Endian, ()) -> BinResult<String> {
     move |reader, _endian, _args| {

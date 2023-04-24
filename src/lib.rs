@@ -33,6 +33,7 @@ use std::iter::zip;
 use structs::renditions::CompressionType;
 use structs::renditions::State;
 
+use crate::bom::dynamic_length_string_parser;
 use crate::car::ColorSpace;
 use crate::car::HexString22;
 use crate::car::RenditionKeyToken;
@@ -185,6 +186,7 @@ impl TryFrom<&str> for AssetCatalog {
 
         let mut header: AssetCatalogHeader = Default::default();
         let mut renditions: Vec<(CSIHeader, [u16; 18])> = vec![];
+        let mut appearence_keys: Vec<(u32, String)> = vec![];
         let mut facet_keys: Vec<(RenditionKeyToken, String)> = vec![];
         let mut bitmap_keys: Vec<(HexString22, u32)> = vec![];
         let mut sha1_digests: Vec<String> = vec![]; // actually sha256 of rendition struct
@@ -303,6 +305,24 @@ impl TryFrom<&str> for AssetCatalog {
                         bitmap_keys.push((key, name_identifier));
                     }
                 }
+                "APPEARANCEKEYS" => {
+                    cursor.set_position(address);
+                    let tree = BOMTree::read(&mut cursor)?;
+                    let map =
+                        parse_bomtree_map::<[u8; 0], [u8; 0]>(&bom_header, &mut cursor, &tree)?;
+                    for BOMPathIndices { index0, index1 } in map {
+                        let key_index = index0 as usize;
+                        let key_pointer = &bom_header.index_header.pointers[key_index];
+                        cursor.set_position((key_pointer.address) as u64);
+                        let key = <u32>::read_le(&mut cursor)?;
+
+                        let value_index = index1 as usize;
+                        let value_pointer = &bom_header.index_header.pointers[value_index];
+                        cursor.set_position((value_pointer.address) as u64);
+                        let value = dynamic_length_string_parser(value_pointer.length as usize)(&mut cursor, binrw::Endian::Little, ())?;
+                        appearence_keys.push((key, value));
+                    }
+                }
                 _ => {
                     eprintln!(
                         "Unknown BOMVar: name={:?}, index={}, length={}",
@@ -312,6 +332,8 @@ impl TryFrom<&str> for AssetCatalog {
                 }
             }
         }
+
+        dbg!(&appearence_keys);
 
         // decode rendition keys
         let mut assets = vec![];
