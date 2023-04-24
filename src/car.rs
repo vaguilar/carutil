@@ -274,7 +274,7 @@ impl RenditionFlags {
     }
 
     pub fn bitmap_encoding(&self) -> &str {
-        match (self.flags >> 4) & 0b1111  {
+        match (self.flags >> 4) & 0b1111 {
             1 => "RGB",
             _ => "???",
         }

@@ -319,7 +319,11 @@ impl TryFrom<&str> for AssetCatalog {
                         let value_index = index1 as usize;
                         let value_pointer = &bom_header.index_header.pointers[value_index];
                         cursor.set_position((value_pointer.address) as u64);
-                        let value = dynamic_length_string_parser(value_pointer.length as usize)(&mut cursor, binrw::Endian::Little, ())?;
+                        let value = dynamic_length_string_parser(value_pointer.length as usize)(
+                            &mut cursor,
+                            binrw::Endian::Little,
+                            (),
+                        )?;
                         appearence_keys.push((key, value));
                     }
                 }
@@ -397,10 +401,10 @@ impl TryFrom<&str> for AssetCatalog {
                     data_length = *_raw_data_length;
                 }
                 CUIRendition::CELM {
-                    version,
+                    version: _,
                     compression_type,
                     _raw_data_length,
-                    raw_data,
+                    raw_data: _,
                 } => {
                     dbg!("CELM");
                     // dbg!(tag);
@@ -409,11 +413,11 @@ impl TryFrom<&str> for AssetCatalog {
                     // dbg!("CELM", &raw_data[0..8]);
                 }
                 CUIRendition::Color {
-                    version,
+                    version: _,
                     color_space,
                     _padding,
                     _reserved,
-                    component_count,
+                    component_count: _,
                     components,
                 } => {
                     dbg!("Color");
@@ -423,7 +427,7 @@ impl TryFrom<&str> for AssetCatalog {
                     dbg!(&components);
                 }
                 CUIRendition::MSIS {
-                    version,
+                    version: _,
                     sizes_count,
                     entries,
                 } => {
@@ -464,8 +468,8 @@ impl TryFrom<&str> for AssetCatalog {
                 RenditionLayoutType::Color => {
                     match csi_header.rendition_data {
                         CUIRendition::Color {
-                            version,
-                            color_space,
+                            version: _,
+                            color_space: _,
                             _padding,
                             _reserved,
                             component_count,
@@ -501,14 +505,17 @@ impl TryFrom<&str> for AssetCatalog {
                 RenditionLayoutType::Image => {
                     match &csi_header.rendition_data {
                         CUIRendition::RawData {
-                            version,
+                            version: _,
                             _raw_data_length,
-                            raw_data,
+                            raw_data: _,
                         } => {
                             AssetCatalogAsset::Image {
                                 common: common,
                                 bits_per_component: 8, // TODO: fix
-                                color_model: csi_header.rendition_flags.bitmap_encoding().to_string(),
+                                color_model: csi_header
+                                    .rendition_flags
+                                    .bitmap_encoding()
+                                    .to_string(),
                                 color_space: csi_header.color_space,
                                 compression: CompressionType::Uncompressed,
                                 encoding: csi_header.pixel_format,
@@ -521,15 +528,18 @@ impl TryFrom<&str> for AssetCatalog {
                             }
                         }
                         CUIRendition::CELM {
-                            version,
+                            version: _,
                             compression_type,
                             _raw_data_length,
-                            raw_data,
+                            raw_data: _,
                         } => {
                             AssetCatalogAsset::Image {
                                 common: common,
                                 bits_per_component: 8, // TODO: fix
-                                color_model: csi_header.rendition_flags.bitmap_encoding().to_string(),
+                                color_model: csi_header
+                                    .rendition_flags
+                                    .bitmap_encoding()
+                                    .to_string(),
                                 color_space: ColorSpace::SRGB, // TODO: fix
                                 compression: compression_type.to_owned(),
                                 encoding: csi_header.pixel_format,
@@ -558,7 +568,7 @@ impl TryFrom<&str> for AssetCatalog {
                         rendition_name: format!("{:?}", csi_header.csimetadata.name),
                         pixel_height: csi_header.height,
                         pixel_width: csi_header.width,
-                        state: State::Normal, // TODO: fix
+                        state: State::Normal,                   // TODO: fix
                         template_mode: TemplateMode::Automatic, // TODO: fix
                     }
                 }
@@ -578,14 +588,12 @@ impl TryFrom<&str> for AssetCatalog {
                     rendition_name,
                     ..
                 } => {
-                    let a_common = common;
+                    let _a_common = common;
                     let a_rendition_name = rendition_name;
                     match b {
-                        AssetCatalogAsset::Image {
-                            common,
-                            rendition_name,
-                            ..
-                        } => a_rendition_name.cmp(&rendition_name),
+                        AssetCatalogAsset::Image { rendition_name, .. } => {
+                            a_rendition_name.cmp(&rendition_name)
+                        }
                         _ => Ordering::Equal,
                     }
                 }
@@ -608,7 +616,7 @@ where
     for<'a> <T as BinRead>::Args<'a>: Default,
     for<'a> <U as BinRead>::Args<'a>: Default,
 {
-    let mut result = Vec::new();
+    // let mut result = Vec::new();
     let tree_index = tree.child_index as usize;
     let index_address = bom_header.index_header.pointers[tree_index].address as u64;
     cursor.set_position(index_address);
@@ -632,10 +640,13 @@ where
     //         }
     //     }
     // }
-    Ok(result)
+    // Ok(result)
 }
 
-fn parse_key(blob: &[u16], keys: &[RenditionAttributeType]) -> HashMap<RenditionAttributeType, u16> {
+fn parse_key(
+    blob: &[u16],
+    keys: &[RenditionAttributeType],
+) -> HashMap<RenditionAttributeType, u16> {
     let mut result = HashMap::new();
 
     for (key, value) in zip(keys, blob) {
