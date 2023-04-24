@@ -108,7 +108,7 @@ pub enum AssetCatalogAsset {
         #[serde(rename(serialize = "Colorspace"))]
         color_space: ColorSpace,
         #[serde(rename(serialize = "State"))]
-        state: String,
+        state: State,
     },
     Data {
         #[serde(flatten)]
@@ -144,7 +144,7 @@ pub enum AssetCatalogAsset {
         #[serde(rename(serialize = "PixelWidth"))]
         pixel_width: u32,
         #[serde(rename(serialize = "State"))]
-        state: String,
+        state: State,
     },
 }
 
@@ -455,7 +455,7 @@ impl TryFrom<&str> for AssetCatalog {
                             } else {
                                 csi_header.color_space
                             };
-                            let state = "Normal".to_string(); // TODO: fix
+                            let state = State::Normal; // TODO: fix
                             AssetCatalogAsset::Color {
                                 common: common,
                                 color_components: components
@@ -478,7 +478,11 @@ impl TryFrom<&str> for AssetCatalog {
                 },
                 RenditionLayoutType::Image => {
                     match &csi_header.rendition_data {
-                        CUIRendition::RawData { version, _raw_data_length, raw_data } => {
+                        CUIRendition::RawData {
+                            version,
+                            _raw_data_length,
+                            raw_data,
+                        } => {
                             AssetCatalogAsset::Image {
                                 common: common,
                                 bits_per_component: 8, // TODO: fix
@@ -490,10 +494,15 @@ impl TryFrom<&str> for AssetCatalog {
                                 rendition_name: format!("{:?}", csi_header.csimetadata.name),
                                 pixel_height: csi_header.height,
                                 pixel_width: csi_header.width,
-                                state: "Normal".to_string(), // TODO: fix
+                                state: State::Normal, // TODO: fix
                             }
-                        },
-                        CUIRendition::CELM { version, compression_type, _raw_data_length, raw_data } => {
+                        }
+                        CUIRendition::CELM {
+                            version,
+                            compression_type,
+                            _raw_data_length,
+                            raw_data,
+                        } => {
                             AssetCatalogAsset::Image {
                                 common: common,
                                 bits_per_component: 8, // TODO: fix
@@ -505,7 +514,7 @@ impl TryFrom<&str> for AssetCatalog {
                                 rendition_name: format!("{:?}", csi_header.csimetadata.name),
                                 pixel_height: csi_header.height,
                                 pixel_width: csi_header.width,
-                                state: "Normal".to_string(), // TODO: fix
+                                state: State::Normal, // TODO: fix
                             }
                         }
                         _ => panic!("unexpected rendition type: {:?}", csi_header.rendition_data),
@@ -525,7 +534,7 @@ impl TryFrom<&str> for AssetCatalog {
                         rendition_name: format!("{:?}", csi_header.csimetadata.name),
                         pixel_height: csi_header.height,
                         pixel_width: csi_header.width,
-                        state: "Normal".to_string(), // TODO: fix
+                        state: State::Normal, // TODO: fix
                     }
                 }
                 _ => unimplemented!(
