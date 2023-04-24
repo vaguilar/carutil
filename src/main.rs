@@ -49,8 +49,7 @@ fn main() -> Result<()> {
 
         let bom_header = BOMHeader::read(&mut cursor)?;
         for var in &bom_header.vars.vars {
-            let name = String::from_utf8(var.name.clone())?;
-            println!("{:?}", name);
+            println!("{:?}", &var.name);
 
             // let index = var.index as usize;
             // let pointer = &bom_header.index_header.pointers[index];

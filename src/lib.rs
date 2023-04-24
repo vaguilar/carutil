@@ -191,7 +191,6 @@ impl TryFrom<&str> for AssetCatalog {
             name,
         } in vars_list
         {
-            let name = String::from_utf8_lossy(name);
             let pointer = &bom_header.index_header.pointers[*index as usize];
             let address = pointer.address as u64;
             match name.borrow() {
