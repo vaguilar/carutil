@@ -34,10 +34,10 @@ use std::time::UNIX_EPOCH;
 use structs::renditions::CompressionType;
 use structs::renditions::State;
 
-use crate::bom::dynamic_length_string_parser;
 use crate::car::ColorSpace;
 use crate::car::HexString22;
 use crate::car::RenditionKeyToken;
+use crate::string::dynamic_length_string_parser;
 use crate::structs::renditions::CUIRendition;
 use crate::structs::renditions::Idiom;
 use crate::structs::renditions::TemplateMode;

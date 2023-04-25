@@ -1,7 +1,22 @@
 use std::fmt;
+use std::io::Read;
+use std::io::Seek;
 
 use binrw::BinRead;
 use binrw::BinReaderExt;
+use binrw::BinResult;
+
+// parse strings with dynamic length
+pub fn dynamic_length_string_parser<R: Read + Seek>(
+    length: usize,
+) -> impl Fn(&mut R, binrw::Endian, ()) -> BinResult<String> {
+    move |reader, _endian, _args| {
+        let mut buffer = Vec::with_capacity(length);
+        buffer.resize(length, 0);
+        reader.read(&mut buffer)?;
+        Ok(String::from_utf8_lossy(&buffer).to_string())
+    }
+}
 
 #[derive(Clone)]
 pub struct String4(pub [u8; 4]);

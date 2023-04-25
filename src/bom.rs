@@ -1,10 +1,8 @@
-use std::io::Read;
-use std::io::Seek;
-
 use binrw::binrw;
 use binrw::BinRead;
-use binrw::BinResult;
 use binrw::FilePtr;
+
+use crate::dynamic_length_string_parser;
 
 #[derive(BinRead, Debug)]
 #[brw(big, magic = b"BOMStore")]
@@ -71,16 +69,4 @@ pub struct BOMPaths {
     pub backward: u32,
     #[br(count = count)]
     pub indices: Vec<BOMPathIndices>,
-}
-
-// parse strings with dynamic length
-pub fn dynamic_length_string_parser<R: Read + Seek>(
-    length: usize,
-) -> impl Fn(&mut R, binrw::Endian, ()) -> BinResult<String> {
-    move |reader, _endian, _args| {
-        let mut buffer = Vec::with_capacity(length);
-        buffer.resize(length, 0);
-        reader.read(&mut buffer)?;
-        Ok(String::from_utf8_lossy(&buffer).to_string())
-    }
 }
