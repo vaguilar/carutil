@@ -38,11 +38,11 @@ use crate::bom::dynamic_length_string_parser;
 use crate::car::ColorSpace;
 use crate::car::HexString22;
 use crate::car::RenditionKeyToken;
-use crate::car::RenditionType;
 use crate::structs::renditions::CUIRendition;
 use crate::structs::renditions::Idiom;
 use crate::structs::renditions::TemplateMode;
 use crate::structs::renditions::Value;
+use crate::structs::tlv::RenditionType;
 
 pub mod bom;
 pub mod car;
@@ -442,18 +442,17 @@ impl TryFrom<&str> for AssetCatalog {
                 }
             }
 
-            dbg!(&csi_header.csibitmaplist);
-            let mut tlv_cursor = Cursor::new(csi_header.tlv_data);
-            // dbg!(&csi_header.tlv_data);
-            let mut uti = "UTI-Unknown".to_string();
-            while let Ok(tlv) = RenditionType::read_le(&mut tlv_cursor) {
-                match tlv {
-                    RenditionType::UTI { string, .. } => {
-                        uti = String::from_utf8_lossy(&string.0).to_string();
-                    }
-                    _ => {}
-                }
-            }
+            // dbg!(&csi_header.csibitmaplist);
+            let uti = csi_header
+                .tlv_data
+                .iter()
+                .map(|rendition_type| match rendition_type {
+                    RenditionType::UTI { string, .. } => Some(string.to_string()),
+                    _ => None,
+                })
+                .flatten()
+                .next()
+                .unwrap_or_else(|| "UTI-Unknown".to_string());
 
             let mut data_length: u32 = 0;
             match &csi_header.rendition_data {

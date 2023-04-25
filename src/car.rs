@@ -11,6 +11,8 @@ use serde::Serializer;
 use crate::string::String128;
 use crate::string::String4;
 use crate::structs::renditions::CUIRendition;
+use crate::structs::tlv::parse_tlv_data;
+use crate::structs::tlv::RenditionType;
 
 #[derive(Debug, BinRead)]
 #[brw(little)]
@@ -159,8 +161,9 @@ pub struct CSIHeader {
     pub color_space: ColorSpace,
     pub csimetadata: CSIMetadata,
     pub csibitmaplist: CSIBitmapList,
-    #[br(count = csibitmaplist.tlv_length)]
-    pub tlv_data: Vec<u8>,
+    #[br(args(csibitmaplist.tlv_length))]
+    #[br(parse_with = parse_tlv_data)]
+    pub tlv_data: Vec<RenditionType>,
     pub rendition_data: CUIRendition,
 }
 
@@ -182,75 +185,6 @@ pub enum RenditionTLVType {
     EXIFOrientation = 0x3EE,
     ExternalTags = 0x3F0,
     Frame = 0x3F1,
-}
-
-#[derive(BinRead, Debug)]
-pub enum RenditionType {
-    #[brw(magic = 0x3E9u32)]
-    Slices {
-        _length: u32,
-        idk0: u32,
-        idk1: u32,
-        idk2: u32,
-        height: u32,
-        width: u32,
-    },
-    #[brw(magic = 0x3EBu32)]
-    Metrics {
-        _length: u32,
-        idk0: u32,
-        idk1: u32,
-        idk2: u32,
-        idk3: u32,
-        idk4: u32,
-        height: u32,
-        width: u32,
-    },
-    #[brw(magic = 0x3ECu32)]
-    BlendModeAndOpacity {
-        _length: u32,
-        blend: f32,
-        opacity: f32,
-    },
-    #[brw(magic = 0x3EDu32)]
-    UTI {
-        _length: u32,
-        string_length: u32,
-        _padding: u32,
-        #[br(pad_size_to = string_length)]
-        string: NullString,
-    },
-    #[brw(magic = 0x03EEu32)]
-    EXIFOrientation {
-        _length: u32,
-        orientation: EXIFOrientationValue,
-    },
-    #[brw(magic = 0x03EFu32)]
-    IDK {
-        length: u32,
-        #[br(count = length)]
-        data: Vec<u8>,
-    },
-    Unknown {
-        tag: u32,
-        length: u32,
-        #[br(count = length)]
-        data: Vec<u8>,
-    },
-}
-
-#[derive(BinRead, Debug, Clone, Copy)]
-#[br(repr(u32))]
-pub enum EXIFOrientationValue {
-    None = 0,
-    Normal = 1,
-    Mirrored = 2,
-    Rotated180 = 3,
-    Rotated180Mirrored = 4,
-    Rotated90 = 5,
-    Rotated90Mirrored = 6,
-    Rotated270 = 7,
-    Rotated2700Mirrored = 8,
 }
 
 #[derive(BinRead, Debug, Clone)]
@@ -305,6 +239,7 @@ pub enum PixelFormat {
     None = 0,
     ARGB = 0x41524742,
     Data = 0x44415441,
+    GA8 = 0x47413820,
     JPEG = 0x4A504547,
 }
 
