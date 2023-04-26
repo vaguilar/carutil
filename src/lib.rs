@@ -463,7 +463,7 @@ impl TryFrom<&str> for AssetCatalog {
                     dbg!("RAWD");
                     dbg!(version);
                     dbg!(_raw_data_length);
-                    dbg!("asdf", &raw_data[0..4]);
+                    dbg!("asdf", &raw_data.0[0..4]);
                     data_length = *_raw_data_length;
                 }
                 CUIRendition::CELM {

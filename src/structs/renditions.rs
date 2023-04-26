@@ -1,6 +1,9 @@
 use binrw::BinRead;
 use num_derive::FromPrimitive;
 use serde::Serialize;
+use std::fmt::Debug;
+
+use super::common::RawData;
 
 #[derive(Debug, BinRead, Clone)]
 pub enum CUIRendition {
@@ -9,7 +12,7 @@ pub enum CUIRendition {
         version: u32,
         _raw_data_length: u32,
         #[br(count = _raw_data_length)]
-        raw_data: Vec<u8>,
+        raw_data: RawData,
     },
     #[br(magic = b"RLOC")]
     Color {
@@ -28,7 +31,7 @@ pub enum CUIRendition {
         compression_type: CompressionType,
         _raw_data_length: u32,
         #[br(count = _raw_data_length)]
-        raw_data: Vec<u8>,
+        raw_data: RawData,
     },
     // MultiSized Image Sizes?
     #[br(magic = b"SISM")]
