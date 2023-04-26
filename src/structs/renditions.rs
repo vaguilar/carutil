@@ -81,6 +81,7 @@ pub enum CompressionType {
     ZIP,
     LZVN,
     LZFSE,
+    #[serde(rename = "jpeg-lzfse")]
     JPEGLZFSE,
     Blurred,
     ASTC,
@@ -96,9 +97,11 @@ pub enum State {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum TemplateMode {
-    #[serde(rename = "automatic")]
+    None = 0,
     Automatic,
+    Template,
 }
 
 #[derive(Debug, Serialize)]

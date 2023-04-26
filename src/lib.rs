@@ -165,7 +165,8 @@ pub enum AssetCatalogAsset {
         #[serde(skip_serializing_if = "Option::is_none")]
         state: Option<State>,
         #[serde(rename(serialize = "Template Mode"))]
-        template_mode: TemplateMode,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        template_mode: Option<TemplateMode>,
     },
 }
 
@@ -590,7 +591,7 @@ impl TryFrom<&str> for AssetCatalog {
                                 pixel_height: csi_header.height,
                                 pixel_width: csi_header.width,
                                 state,
-                                template_mode: TemplateMode::Automatic, // TODO: fix
+                                template_mode: None, // TODO: fix
                             }
                         }
                         CUIRendition::CELM {
@@ -614,7 +615,7 @@ impl TryFrom<&str> for AssetCatalog {
                                 pixel_height: csi_header.height,
                                 pixel_width: csi_header.width,
                                 state,
-                                template_mode: TemplateMode::Automatic, // TODO: fix
+                                template_mode: None, // TODO: fix
                             }
                         }
                         _ => panic!("unexpected rendition type: {:?}", csi_header.rendition_data),
@@ -635,7 +636,7 @@ impl TryFrom<&str> for AssetCatalog {
                         pixel_height: csi_header.height,
                         pixel_width: csi_header.width,
                         state,
-                        template_mode: TemplateMode::Automatic, // TODO: fix
+                        template_mode: None, // TODO: fix
                     }
                 }
                 _ => unimplemented!(
