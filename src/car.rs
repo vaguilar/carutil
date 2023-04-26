@@ -167,26 +167,6 @@ pub struct CSIHeader {
     pub rendition_data: CUIRendition,
 }
 
-#[derive(BinRead, Debug)]
-pub struct TLVStruct {
-    pub type_id: RenditionTLVType,
-    pub length: u32,
-    #[br(count = length)]
-    pub value: Vec<u8>,
-}
-
-#[derive(BinRead, Debug)]
-#[br(repr(u32))]
-pub enum RenditionTLVType {
-    Slices = 0x3E9,
-    Metrics = 0x3EB,
-    BlendModeAndOpacity = 0x3EC,
-    UTI = 0x3ED,
-    EXIFOrientation = 0x3EE,
-    ExternalTags = 0x3F0,
-    Frame = 0x3F1,
-}
-
 #[derive(BinRead, Debug, Clone)]
 pub struct RenditionFlags {
     // these values are all packed into one u32
@@ -239,7 +219,7 @@ pub enum PixelFormat {
     None = 0,
     ARGB = 0x41524742,
     Data = 0x44415441,
-    GA8 = 0x47413820,
+    Gray = 0x47413820,
     JPEG = 0x4A504547,
 }
 
