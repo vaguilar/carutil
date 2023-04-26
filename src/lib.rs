@@ -22,7 +22,6 @@ use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
 use std::borrow::Borrow;
-use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -648,27 +647,33 @@ impl TryFrom<&str> for AssetCatalog {
             dbg!("");
         }
 
-        assets.sort_by(|a, b| {
-            match a {
-                AssetCatalogAsset::Image {
-                    common,
-                    rendition_name,
-                    ..
-                } => {
-                    let _a_common = common;
-                    let a_rendition_name = rendition_name;
-                    match b {
-                        AssetCatalogAsset::Image { rendition_name, .. } => {
-                            a_rendition_name.cmp(&rendition_name)
-                        }
-                        _ => Ordering::Equal,
-                    }
-                }
-                _ => Ordering::Equal,
-            }
-            // b.common.asset_type.partial_cmp(&a.common.asset_type).unwrap_or(std::cmp::Ordering::Equal)
-        });
+        assets.sort_by(|a, b| get_sort_key(a).cmp(&get_sort_key(b)));
+
         Ok(AssetCatalog { header, assets })
+    }
+}
+
+fn get_sort_key(asset: &AssetCatalogAsset) -> (String, &String, &String) {
+    match asset {
+        AssetCatalogAsset::Image {
+            common,
+            rendition_name,
+            ..
+        } => (
+            format!("{:?}", common.asset_type),
+            &common.name,
+            rendition_name,
+        ),
+        AssetCatalogAsset::Color { common, .. } => (
+            format!("{:?}", common.asset_type),
+            &common.name,
+            &common.name,
+        ),
+        AssetCatalogAsset::Data { common, .. } => (
+            format!("{:?}", common.asset_type),
+            &common.name,
+            &common.name,
+        ),
     }
 }
 

@@ -73,7 +73,7 @@ pub enum RenditionType {
     },
 }
 
-// this is encoded as type length value data 
+// this is encoded as type length value data
 #[binrw::parser(reader, endian)]
 pub fn parse_tlv_data(args: (u32,)) -> BinResult<Vec<RenditionType>> {
     let size = args.0 as usize;
