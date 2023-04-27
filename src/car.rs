@@ -3,16 +3,17 @@ use std::fmt;
 use binrw::BinRead;
 use binrw::BinResult;
 use binrw::NullString;
+use bitfield_struct::bitfield;
 use hex::ToHex;
 use num_derive::FromPrimitive;
 use serde::Serialize;
 use serde::Serializer;
 
-use crate::string::String128;
-use crate::string::String4;
-use crate::structs::renditions::CUIRendition;
-use crate::structs::tlv::parse_tlv_data;
-use crate::structs::tlv::RenditionType;
+use crate::common::dynamic_string::dynamic_length_string_parser;
+use crate::coregraphics;
+use crate::coreui::rendition::Rendition;
+use crate::coreui::tlv::parse_tlv_data;
+use crate::coreui::tlv::RenditionType;
 
 #[derive(Debug, BinRead)]
 #[brw(little)]
@@ -48,13 +49,43 @@ pub struct CarExtendedMetadata {
 }
 
 #[derive(Debug, BinRead)]
-#[brw(little)]
+#[brw(little, magic = b"tmfk")]
 pub struct KeyFormat {
-    _magic: String4,
     pub _version: u32,
     pub _max_count: u32,
     #[br(count = _max_count)]
     pub attribute_types: Vec<RenditionAttributeType>,
+}
+
+#[derive(Debug, BinRead, FromPrimitive, Clone, Copy, PartialEq, Eq, Hash)]
+#[br(repr(u32))]
+pub enum RenditionAttributeType2 {
+    Look = 0,
+    Element,
+    Part,
+    Size,
+    Direction,
+    PlaceHolder,
+    Value,
+    Appearance,
+    Dimension1,
+    Dimension2,
+    State,
+    Layer,
+    Scale,
+    Unknown13,
+    PresentationState,
+    Idiom,
+    Subtype,
+    Identifier,
+    PreviousValue,
+    PreviousState,
+    SizeClassHorizontal,
+    SizeClassVertical,
+    MemoryClass,
+    GraphicsClass,
+    DisplayGamut,
+    DeploymentTarget,
 }
 
 #[derive(Debug, BinRead, FromPrimitive, Clone, Copy, PartialEq, Eq, Hash)]
@@ -99,13 +130,13 @@ impl Serialize for RenditionAttributeType {
 }
 
 #[derive(BinRead, Debug)]
-#[brw(big)]
+#[brw(little, magic = b"tmfk")]
 pub struct RenditionKeyFmt {
-    _magic: u32,
-    _version: u32,
-    _maximum_rendition_key_token_count: u32,
+    pub _version: u32,
+    pub _maximum_rendition_key_token_count: u32,
     #[br(count = _maximum_rendition_key_token_count)]
-    _rendition_key_tokens: Vec<RenditionKeyToken>,
+    #[br(dbg)]
+    pub _rendition_key_tokens: Vec<RenditionKeyToken>,
 }
 
 #[derive(BinRead, Debug)]
@@ -121,14 +152,8 @@ pub struct RenditionKeyToken {
 pub struct RenditionAttribute {
     #[br(parse_with = parse_rendition_attribute_type_u16)]
     pub name: RenditionAttributeType,
-    // name: u16, // RenditionAttributeType
+    // pub name: u16, // RenditionAttributeType
     pub value: u16,
-}
-
-#[derive(BinRead, Debug)]
-pub struct Asset {
-    _name: u16,
-    _value: u16,
 }
 
 #[derive(BinRead, Debug, Clone)]
@@ -137,7 +162,8 @@ pub struct CSIMetadata {
     _mod_time: u32,
     pub layout: RenditionLayoutType,
     _zero: u16,
-    pub name: String128,
+    #[br(parse_with = dynamic_length_string_parser(128))]
+    pub name: String,
 }
 
 #[derive(BinRead, Debug, Clone)]
@@ -151,22 +177,56 @@ pub struct CSIBitmapList {
 #[derive(BinRead, Debug, Clone)]
 #[brw(little)]
 pub struct CSIHeader {
-    pub magic: String4,
+    #[br(parse_with = dynamic_length_string_parser(4))]
+    pub magic: String,
     pub version: u32,
     pub rendition_flags: RenditionFlags,
     pub width: u32,
     pub height: u32,
     pub scale_factor: Scale,
     pub pixel_format: PixelFormat,
-    pub color_space: ColorSpace,
+    pub color_space: coregraphics::ColorSpace,
     pub csimetadata: CSIMetadata,
     pub csibitmaplist: CSIBitmapList,
     #[br(args(csibitmaplist.tlv_length))]
     #[br(parse_with = parse_tlv_data)]
     pub tlv_data: Vec<RenditionType>,
-    pub rendition_data: CUIRendition,
+    pub rendition_data: Rendition,
 }
 
+/*
+CUI::NamedImageProperties
+"{_cuiniproperties=\"isVectorBased\"b1\"hasSliceInformation\"b1\"hasAlignmentInformation\"b1\"resizingMode\"b2\"templateRenderingMode\"b3\"exifOrientation\"b4\"isAlphaCropped\"b1\"isFlippable\"b1\"isTintable\"b1\"preservedVectorRepresentation\"b1\"_reserved\"b16}", 0
+*/
+#[bitfield(u32)]
+pub struct NamedImageProperties {
+    #[bits(1)]
+    is_vector_based: bool,
+    #[bits(1)]
+    has_slice_information: bool,
+    #[bits(1)]
+    has_alignment_information: bool,
+    #[bits(2)]
+    resizing_mode: u8,
+    #[bits(3)]
+    template_rendering_mode: u8,
+    #[bits(4)]
+    exif_orientation: u8,
+    #[bits(1)]
+    is_alpha_cropped: bool,
+    #[bits(1)]
+    is_flippable: bool,
+    #[bits(1)]
+    is_tintable: bool,
+    #[bits(1)]
+    preserved_vector_representation: bool,
+    #[bits(16)]
+    _reserved: u16,
+}
+
+/*
+"{cuithemerenditionrenditionflags=\"isVectorBased\"b1\"isOpaque\"b1\"bitmapEncoding\"b4\"optOutOfThinning\"b1\"isFlippable\"b1\"isTintable\"b1\"preservedVectorRepresentation\"b1\"reserved\"b22}", 0
+*/
 #[derive(BinRead, Debug, Clone)]
 pub struct RenditionFlags {
     // these values are all packed into one u32
@@ -179,6 +239,7 @@ pub struct RenditionFlags {
     // is_flippable: u32,
     // is_tintable: u32,
     // preserved_vector_representation: u32,
+    // reserved: u32,
     flags: u32,
 }
 
@@ -195,23 +256,23 @@ impl RenditionFlags {
     }
 }
 
-#[derive(BinRead, Clone, Debug, Serialize)]
-#[br(repr(u32))]
-pub enum ColorSpace {
-    #[serde(rename = "srgb")]
-    SRGB = 0,
-    #[serde(rename = "gray gamma 22")]
-    GrayGamma2_2,
-    #[serde(rename = "p3")]
-    DisplayP3,
-    #[serde(rename = "extended srgb")]
-    ExtendedRangeSRGB,
-    #[serde(rename = "extended linear srgb")]
-    ExtendedLinearSRGB,
-    #[serde(rename = "extended gray")]
-    ExtendedGray,
-    Unknown = 14,
-}
+// #[derive(BinRead, Clone, Debug, Serialize)]
+// #[br(repr(u32))]
+// pub enum ColorSpace {
+//     #[serde(rename = "srgb")]
+//     SRGB = 0,
+//     #[serde(rename = "gray gamma 22")]
+//     GrayGamma2_2,
+//     #[serde(rename = "p3")]
+//     DisplayP3,
+//     #[serde(rename = "extended srgb")]
+//     ExtendedRangeSRGB,
+//     #[serde(rename = "extended linear srgb")]
+//     ExtendedLinearSRGB,
+//     #[serde(rename = "extended gray")]
+//     ExtendedGray,
+//     Unknown = 14,
+// }
 
 #[derive(BinRead, Debug, Clone, Serialize)]
 #[br(repr(u32))]
@@ -223,7 +284,7 @@ pub enum PixelFormat {
     JPEG = 0x4A504547,
 }
 
-#[derive(BinRead, Clone)]
+#[derive(BinRead, Clone, FromPrimitive)]
 #[br(repr(u32))]
 pub enum Scale {
     None = 0,
@@ -334,7 +395,10 @@ impl fmt::Display for RenditionAttributeType {
 fn parse_rendition_attribute_type_u16() -> BinResult<RenditionAttributeType> {
     let raw = u16::read_options(reader, endian, ())?;
     let attribute = num::FromPrimitive::from_u16(raw);
-    attribute.ok_or(binrw::Error::NoVariantMatch { pos: 0 })
+    dbg!(raw);
+    attribute.ok_or(binrw::Error::NoVariantMatch {
+        pos: reader.stream_position().unwrap(),
+    })
 }
 
 #[derive(BinRead)]

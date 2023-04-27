@@ -2,7 +2,6 @@ use std::io::Cursor;
 
 use binrw::BinRead;
 use binrw::BinResult;
-use binrw::NullString;
 
 #[derive(BinRead, Debug, Clone, Copy)]
 #[br(repr(u32))]
@@ -51,8 +50,8 @@ pub enum RenditionType {
         _length: u32,
         string_length: u32,
         _padding: u32,
-        #[br(pad_size_to = string_length)]
-        string: NullString,
+        #[br(count = string_length)]
+        string: Vec<u8>,
     },
     #[brw(magic = 0x03EEu32)]
     EXIFOrientation {

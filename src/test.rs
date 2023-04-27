@@ -1,6 +1,13 @@
+use crate::assetutil::ToAssetUtilHeader;
+
 use super::*;
+use coreui;
 
 use assert_json_diff::assert_json_eq;
+use assert_json_diff::assert_json_matches;
+use assert_json_diff::CompareMode;
+use assert_json_diff::Config;
+use assert_json_diff::NumericMode;
 use serde_json::json;
 
 // test file from https://blog.timac.org/2018/1018-reverse-engineering-the-car-file-format/
@@ -40,9 +47,11 @@ fn header_simple() {
       "StorageVersion": 15,
       "Timestamp": 1539543253
     });
-    let asset_catalog = AssetCatalog::try_from(CAR_PATH).expect("Unable to parse Assets.car");
-    let header =
-        serde_json::to_value(asset_catalog.header).expect("Unable to serialize to JSON value");
+
+    let asset_storage =
+        coreui::CarUtilAssetStorage::from(CAR_PATH, false).expect("Unable to aprse Assets.car");
+    let header = serde_json::to_value(asset_storage.asset_util_header())
+        .expect("Unable to serialize to JSON value");
     assert_json_eq!(header, expected_header);
 }
 
@@ -67,18 +76,21 @@ fn color_simple() {
       "Value": "Off"
     });
 
-    let asset_catalog = AssetCatalog::try_from(CAR_PATH).expect("Unable to parse Assets.car");
-    let asset = asset_catalog
-        .assets
+    let asset_storage =
+        coreui::CarUtilAssetStorage::from(CAR_PATH, false).expect("Unable to aprse Assets.car");
+    let entries =
+        assetutil::AssetUtilEntry::entries_from_asset_storage(&asset_storage.theme_store.store);
+    let asset = entries
         .into_iter()
-        .find(|asset| match asset {
-            AssetCatalogAsset::Color { common, .. } => common.name == "MyColor",
-            _ => false,
-        })
-        .expect("Couldn't find asset for test");
+        .find(|e| e.name == Some("MyColor".to_string()))
+        .expect("No rendition found");
     let color = serde_json::to_value(asset).expect("Unable to serialize output");
 
-    assert_json_eq!(color, expected_color);
+    assert_json_matches!(
+        color,
+        expected_color,
+        Config::new(CompareMode::Strict).numeric_mode(NumericMode::AssumeFloat)
+    );
 }
 
 #[test]
@@ -98,15 +110,49 @@ fn data_simple() {
       "Value": "Off"
     });
 
-    let asset_catalog = AssetCatalog::try_from(CAR_PATH).expect("Unable to parse Assets.car");
-    let asset = asset_catalog
-        .assets
+    let asset_storage =
+        coreui::CarUtilAssetStorage::from(CAR_PATH, false).expect("Unable to aprse Assets.car");
+    let entries =
+        assetutil::AssetUtilEntry::entries_from_asset_storage(&asset_storage.theme_store.store);
+    let asset = entries
         .into_iter()
-        .find(|asset| match asset {
-            AssetCatalogAsset::Data { common, .. } => common.name == "MyText",
-            _ => false,
-        })
-        .expect("Couldn't find asset for test");
+        .find(|e| e.name == Some("MyText".to_string()))
+        .expect("No rendition found");
+    let data = serde_json::to_value(asset).expect("Unable to serialize output");
+
+    assert_json_eq!(data, expected_data);
+}
+
+#[test]
+fn data_jpeg() {
+    let expected_data = json!({
+        "AssetType": "Image",
+        "BitsPerComponent": 8,
+        "ColorModel": "RGB",
+        "Encoding": "JPEG",
+        "Idiom": "universal",
+        "Name": "MyJPG",
+        "NameIdentifier": 48301,
+        "Opaque": true,
+        "PixelHeight": 200,
+        "PixelWidth": 200,
+        "RenditionName": "TimacJPG.jpg",
+        "SHA1Digest": "39A48EB47A367C1099FAFBFDFAEED19F5DA85E8F17EFF1DB26A644A0D39C7A52",
+        "Scale": 1,
+        "SizeOnDisk": 8042,
+        "State": "Normal",
+        "Template Mode": "automatic",
+        "Value": "Off"
+    });
+
+    let asset_storage =
+        coreui::CarUtilAssetStorage::from(CAR_PATH, false).expect("Unable to aprse Assets.car");
+    let entries =
+        assetutil::AssetUtilEntry::entries_from_asset_storage(&asset_storage.theme_store.store);
+    let asset = entries
+        .into_iter()
+        .find(|e| e.name == Some("MyJPG".to_string()))
+        .expect("No rendition found");
     let data = serde_json::to_value(asset).expect("Unable to serialize output");
 
     assert_json_eq!(data, expected_data);
@@ -136,15 +182,14 @@ fn image_simple() {
       "Value": "Off"
     });
 
-    let asset_catalog = AssetCatalog::try_from(CAR_PATH).expect("Unable to parse Assets.car");
-    let asset = asset_catalog
-        .assets
+    let asset_storage =
+        coreui::CarUtilAssetStorage::from(CAR_PATH, false).expect("Unable to aprse Assets.car");
+    let entries =
+        assetutil::AssetUtilEntry::entries_from_asset_storage(&asset_storage.theme_store.store);
+    let asset = entries
         .into_iter()
-        .find(|asset| match asset {
-            AssetCatalogAsset::Image { rendition_name, .. } => rendition_name == "Timac@3x.png",
-            _ => false,
-        })
-        .expect("Couldn't find asset for test");
+        .find(|e| e.rendition_name == Some("Timac@3x.png".to_string()))
+        .expect("No rendition found");
     let image = serde_json::to_value(asset).expect("Unable to serialize output");
 
     assert_json_eq!(image, expected_image);
