@@ -1,4 +1,7 @@
 use binrw::BinRead;
+use std::fmt::Debug;
+
+use crate::common;
 
 #[derive(BinRead, Debug, Clone, Copy)]
 #[br(repr(u32))]
@@ -14,7 +17,7 @@ pub enum EXIFOrientationValue {
     Rotated2700Mirrored = 8,
 }
 
-#[derive(BinRead, Clone, Debug)]
+#[derive(BinRead, Clone)]
 pub enum RenditionType {
     #[brw(magic = 0x3E9u32)]
     Slices {
@@ -50,21 +53,35 @@ pub enum RenditionType {
         #[br(count = string_length)]
         string: Vec<u8>,
     },
-    #[brw(magic = 0x03EEu32)]
+    #[brw(magic = 0x3EEu32)]
     EXIFOrientation {
         _length: u32,
         orientation: EXIFOrientationValue,
     },
-    #[brw(magic = 0x03EFu32)]
+    #[brw(magic = 0x3EFu32)]
     IDK {
         length: u32,
         #[br(count = length)]
-        data: Vec<u8>,
+        data: common::RawData,
     },
     Unknown {
         tag: u32,
         length: u32,
         #[br(count = length)]
-        data: Vec<u8>,
+        data: common::RawData,
     },
+}
+
+impl Debug for RenditionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Slices { height, width, .. } => f.write_fmt(format_args!("Slice {{ height: {}, width: {} }}", height, width)),
+            Self::Metrics { height, width, .. } => f.write_fmt(format_args!("Metrics {{ height: {}, width: {} }}", height, width)),
+            Self::BlendModeAndOpacity { blend, opacity, .. } => f.write_fmt(format_args!("BlendModeAndOpacity {{ blend: {}, opacity: {} }}", blend, opacity)),
+            Self::UTI { string, .. } => f.write_fmt(format_args!("UTI {{ string: {} }}", String::from_utf8_lossy(&string))),
+            Self::EXIFOrientation { orientation, .. } => f.write_fmt(format_args!("EXIFOrientation {{ orientation: {:?} }}", orientation)),
+            Self::IDK { data, .. } => f.write_fmt(format_args!("IDK {{ data: {:?} }}", data)),
+            Self::Unknown { tag, data, .. } => f.write_fmt(format_args!("IDK {{ tag: {}, data: {:?} }}", tag, data)),
+        }
+    }
 }
