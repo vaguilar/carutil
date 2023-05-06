@@ -1,7 +1,4 @@
-use std::io::Cursor;
-
 use binrw::BinRead;
-use binrw::BinResult;
 
 #[derive(BinRead, Debug, Clone, Copy)]
 #[br(repr(u32))]
@@ -70,21 +67,4 @@ pub enum RenditionType {
         #[br(count = length)]
         data: Vec<u8>,
     },
-}
-
-// this is encoded as type length value data
-#[binrw::parser(reader, endian)]
-pub fn parse_tlv_data(args: (u32,)) -> BinResult<Vec<RenditionType>> {
-    let size = args.0 as usize;
-    let mut buffer = Vec::with_capacity(size);
-    buffer.resize(size, 0);
-    reader.read(&mut buffer)?;
-
-    let mut cursor = Cursor::new(buffer);
-    let mut result = vec![];
-    while let Ok(rendition_type) = RenditionType::read_options(&mut cursor, endian, ()) {
-        result.push(rendition_type);
-    }
-
-    Ok(result)
 }

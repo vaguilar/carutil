@@ -2,7 +2,6 @@ use anyhow::Result;
 use binrw::{helpers, BinWrite, NullString};
 use coreui::csi;
 use coreui::rendition;
-use hex::ToHex;
 use memmap::Mmap;
 use sha2::Digest;
 use sha2::Sha256;

@@ -158,9 +158,6 @@ pub enum Rendition {
     Color {
         version: u32,
         flags: ColorFlags,
-        // color_space: u8,
-        // _padding: u8,
-        // _reserved: u16,
         component_count: u32,
         #[br(count = component_count)]
         components: Vec<f64>,

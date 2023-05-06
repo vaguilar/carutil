@@ -7,6 +7,9 @@ use hex::ToHex;
 use num_traits::FromPrimitive;
 use serde::{ser::SerializeMap, Serialize};
 
+// version of the assetutil tool, this is hardcoded to match current version
+pub static VERSION: f64 = 804.3;
+
 #[derive(Debug, Serialize)]
 pub struct AssetUtilHeader {
     #[serde(rename(serialize = "Appearances"))]
@@ -47,7 +50,7 @@ impl ToAssetUtilHeader for coreui::CarUtilAssetStorage {
             asset_storage_version: self.theme_store.store.version_string(),
             authoring_tool: self.theme_store.store.authoring_tool(),
             core_ui_version: self.theme_store.store.header.core_ui_version,
-            dump_tool_version: 804.3, // hardcoded to latest assetutil version
+            dump_tool_version: VERSION,
             key_format: self.theme_store.rendition_key_format(),
             main_version_string: self.theme_store.store.main_version_string(),
             platform: self.theme_store.store.deployment_platform(),
@@ -258,6 +261,7 @@ impl AssetUtilEntry {
             .find(|(attribute, _)| *attribute == coreui::rendition::AttributeType::Identifier)
             .and_then(|(_, value)| Some(*value));
 
+        // TODO: fix this
         let opaque = match layout {
             coreui::rendition::LayoutType32::Image => {
                 dbg!(csi_header.properties());

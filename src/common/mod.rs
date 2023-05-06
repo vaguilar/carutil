@@ -1,8 +1,6 @@
 use binrw::{helpers::count_with, BinRead, VecArgs};
 use std::fmt::Debug;
 
-pub mod dynamic_string;
-
 // wrap Vec<u8> to make debugging better
 #[derive(Clone, PartialOrd, PartialEq)]
 pub struct RawData(pub Vec<u8>);
