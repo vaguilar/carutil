@@ -1,7 +1,6 @@
-use crate::assetutil::ToAssetUtilHeader;
-
-use super::*;
-use coreui;
+use carutil_lib::coreui;
+use carutil_lib::assetutil;
+use carutil_lib::assetutil::ToAssetUtilHeader;
 
 use assert_json_diff::assert_json_eq;
 use assert_json_diff::assert_json_matches;
@@ -11,7 +10,7 @@ use assert_json_diff::NumericMode;
 use serde_json::json;
 
 // test file from https://blog.timac.org/2018/1018-reverse-engineering-the-car-file-format/
-static CAR_PATH: &str = "./test_files/Assets.car";
+static CAR_PATH: &str = "./tests/Assets.car";
 
 #[test]
 fn header_simple() {
