@@ -351,15 +351,6 @@ impl Generator {
     }
 }
 
-impl Serialize for Generator {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        todo!()
-    }
-}
-
 pub trait CSIRepresentation {
     // TODO: fill out
 }

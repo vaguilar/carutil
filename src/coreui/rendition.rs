@@ -236,7 +236,7 @@ pub enum CompressionType {
     DeepMap2,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, FromPrimitive)]
 pub enum State {
     Normal,
 }
@@ -249,7 +249,7 @@ pub enum TemplateMode {
     Template,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, FromPrimitive)]
 pub enum Value {
     Off = 0,
     On = 1,

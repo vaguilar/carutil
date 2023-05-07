@@ -120,7 +120,7 @@ pub struct AssetUtilEntry {
     pub size_on_disk: Option<u32>,
     #[serde(rename(serialize = "State"))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub state: Option<String>,
+    pub state: Option<coreui::rendition::State>,
     #[serde(rename(serialize = "Template Mode"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub template_mode: Option<coreui::rendition::TemplateMode>,
@@ -129,7 +129,7 @@ pub struct AssetUtilEntry {
     pub uti: Option<String>,
     #[serde(rename(serialize = "Value"))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub value: Option<String>,
+    pub value: Option<coreui::rendition::Value>,
 }
 
 impl AssetUtilEntry {
@@ -323,13 +323,13 @@ impl AssetUtilEntry {
             184 + csi_header.csibitmaplist.tlv_length + csi_header.csibitmaplist.rendition_length,
         );
 
-        let state = rendition_key_values
-            .iter()
-            .find(|(attribute, _)| *attribute == coreui::rendition::AttributeType::State)
-            .and_then(|(_, value)| match value {
-                0 => Some("Normal".to_string()),
-                _ => None,
-            });
+        let state = rendition_key_values.iter().find_map(|(attribute, value)| {
+            if *attribute == coreui::rendition::AttributeType::State {
+                FromPrimitive::from_u16(*value)
+            } else {
+                None
+            }
+        });
 
         let template_mode = match layout {
             coreui::rendition::LayoutType32::Image => {
@@ -338,13 +338,13 @@ impl AssetUtilEntry {
             _ => None,
         };
 
-        let value = rendition_key_values
-            .iter()
-            .find(|(attribute, _)| *attribute == coreui::rendition::AttributeType::State)
-            .and_then(|(_, value)| match value {
-                0 => Some("Off".to_string()),
-                _ => Some("On".to_string()),
-            });
+        let value = rendition_key_values.iter().find_map(|(attribute, value)| {
+            if *attribute == coreui::rendition::AttributeType::Value {
+                FromPrimitive::from_u16(*value)
+            } else {
+                None
+            }
+        });
 
         let uti: Option<String> = match layout {
             coreui::rendition::LayoutType32::Data => {
@@ -387,161 +387,4 @@ impl AssetUtilEntry {
             value,
         }
     }
-}
-
-#[derive(Debug)]
-pub struct AssetUtilColor<'a> {
-    pub keyformat: &'a coreui::rendition::KeyFormat,
-    pub name: Option<&'a String>,
-    pub key: coreui::rendition::Key,
-    pub color: &'a coreui::Color,
-    pub sha_digest: &'a String,
-    pub size_on_disk: usize,
-}
-
-impl<'a> Serialize for AssetUtilColor<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let len = None;
-        let mut m = serializer.serialize_map(len)?;
-        m.serialize_entry("AssetType", "Color")?;
-        m.serialize_entry("Color components", &self.color.cg_color.components)?;
-        m.serialize_entry("SizeOnDisk", &self.size_on_disk)?;
-        m.serialize_entry("SHA1Digest", self.sha_digest)?;
-
-        match self.color.cg_color.color_space {
-            1 => {
-                m.serialize_entry("Colorspace", "srgb")?;
-            }
-            _ => {}
-        }
-        if let Some(name) = self.name {
-            m.serialize_entry("Name", name)?;
-        }
-
-        for (key, value) in self.keyformat.map(&self.key) {
-            match &key {
-                coreui::rendition::AttributeType::Part
-                | coreui::rendition::AttributeType::Element => {}
-                coreui::rendition::AttributeType::Idiom => {
-                    let idiom: Option<coreui::rendition::Idiom> = FromPrimitive::from_u16(value);
-                    if let Some(idiom) = idiom {
-                        m.serialize_entry("Idiom", &idiom)?;
-                    }
-                }
-                coreui::rendition::AttributeType::State => {
-                    let state = match value {
-                        0 => "Normal",
-                        _ => "???",
-                    };
-                    m.serialize_entry("State", state)?;
-                }
-                coreui::rendition::AttributeType::Value => {
-                    let value_string = match value {
-                        0 => "Off",
-                        _ => "On",
-                    };
-                    m.serialize_entry("Value", value_string)?;
-                }
-                _ => {
-                    if value > 0 {
-                        m.serialize_entry(&format!("{}", key), &value)?;
-                    }
-                }
-            }
-        }
-        m.end()
-    }
-}
-
-#[derive(Debug)]
-pub struct AssetUtilRendition<'a> {
-    pub keyformat: &'a coreui::rendition::KeyFormat,
-    pub name: Option<&'a String>,
-    pub rendition_name: Option<&'a String>,
-    pub csi_header: &'a coreui::csi::Header,
-    pub key: coreui::rendition::Key,
-    pub sha_digest: &'a String,
-    pub size_on_disk: usize,
-}
-
-impl<'a> Serialize for AssetUtilRendition<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut m = serializer.serialize_map(None)?;
-        m.serialize_entry(
-            "AssetType",
-            match self.csi_header.rendition_data {
-                coreui::rendition::Rendition::RawData { .. } => "Data",
-                coreui::rendition::Rendition::Color { .. } => "Color",
-                coreui::rendition::Rendition::Theme { .. } => "Image",
-                coreui::rendition::Rendition::MultisizeImageSet { .. } => "Image",
-                _ => "???",
-            },
-        )?;
-        m.serialize_entry("SizeOnDisk", &self.size_on_disk)?;
-        m.serialize_entry("SHA1Digest", self.sha_digest)?;
-
-        if let Some(name) = self.name {
-            m.serialize_entry("Name", name)?;
-        }
-
-        match self.csi_header.rendition_data {
-            coreui::rendition::Rendition::Color { .. }
-            | coreui::rendition::Rendition::Theme { .. } => {
-                if let Some(rendition_name) = self.rendition_name {
-                    m.serialize_entry("RenditionName", rendition_name)?;
-                }
-            }
-            _ => {}
-        };
-
-        common_serialization::<S>(&mut m, &self.keyformat, &self.key)?;
-        m.end()
-    }
-}
-
-fn common_serialization<S>(
-    serializer_map: &mut S::SerializeMap,
-    keyformat: &coreui::rendition::KeyFormat,
-    key: &coreui::rendition::Key,
-) -> Result<(), S::Error>
-where
-    S: serde::Serializer,
-{
-    for (key, value) in keyformat.map(&key) {
-        match &key {
-            coreui::rendition::AttributeType::Part | coreui::rendition::AttributeType::Element => {}
-            coreui::rendition::AttributeType::Idiom => {
-                let idiom: Option<coreui::rendition::Idiom> = FromPrimitive::from_u16(value);
-                if let Some(idiom) = idiom {
-                    serializer_map.serialize_entry("Idiom", &idiom)?;
-                }
-            }
-            coreui::rendition::AttributeType::State => {
-                let state = match value {
-                    0 => "Normal",
-                    _ => "???",
-                };
-                serializer_map.serialize_entry("State", state)?;
-            }
-            coreui::rendition::AttributeType::Value => {
-                let value_string = match value {
-                    0 => "Off",
-                    _ => "On",
-                };
-                serializer_map.serialize_entry("Value", value_string)?;
-            }
-            _ => {
-                if value > 0 {
-                    serializer_map.serialize_entry(&format!("{}", key), &value)?;
-                }
-            }
-        }
-    }
-    Ok(())
 }
