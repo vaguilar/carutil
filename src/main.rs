@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::io::Cursor;
 
@@ -28,6 +29,10 @@ struct Args {
     /// dumps structs from .car file
     #[arg(short = 'd', long, value_name = "inputfile")]
     debug: Option<String>,
+
+    /// extract available images from .car file
+    #[arg(short = 'e', long, value_name = "inputfile")]
+    extract_images: Option<String>,
 }
 
 fn main() -> Result<()> {
@@ -73,6 +78,16 @@ fn main() -> Result<()> {
 
             // let index = var.index as usize;
             // let pointer = &bom_header.index_header.pointers[index];
+        }
+        Ok(())
+    } else if let Some(car_path) = args.extract_images {
+        let car = coreui::CarUtilAssetStorage::from(&car_path, false)?;
+        let imagedb = car.theme_store.store.imagedb.unwrap_or_default();
+        for (_rendition_key, csi_header) in imagedb.iter() {
+            let result = csi_header.extract("/tmp/out/");
+            if let Err(err) = result {
+                eprintln!("{:?}", err);
+            }
         }
         Ok(())
     } else {

@@ -1,16 +1,23 @@
+use anyhow::Context;
+use anyhow::Result;
 use binrw::BinRead;
 use chrono::NaiveDateTime;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::Serialize;
 use std::fmt::Debug;
+use std::fs;
+use std::fs::File;
+use std::io::BufWriter;
 use std::io::Cursor;
+use std::path::Path;
 
 use crate::common;
 use crate::coregraphics;
 
 use super::csi;
 use super::rendition;
+use super::rendition::CompressionType;
 use super::rendition::TemplateMode;
 use super::tlv;
 
@@ -156,6 +163,55 @@ impl Header {
             result.push(rendition_type);
         }
         result
+    }
+
+    pub fn extract(&self, path: &str) -> Result<()> {
+        let name = self.csimetadata.name();
+        let output_path = Path::new(path).join(&name);
+        match self.csimetadata.layout {
+            rendition::LayoutType32::Image => {
+                match &self.rendition_data {
+                    rendition::Rendition::RawData { raw_data, ..} => {
+                        fs::write(output_path, raw_data.0.to_owned())?;
+                        Ok(())
+                    },
+                    rendition::Rendition::Theme { compression_type, raw_data, .. } => {
+                        match compression_type {
+                            CompressionType::PaletteImg => {
+                                let mut uncompressed_rendition_data = vec![];
+                                lzfse_rust::decode_bytes(&raw_data.0, &mut uncompressed_rendition_data)?;
+                                let mut reader = Cursor::new(&mut uncompressed_rendition_data);
+                                let quantized_image = rendition::QuantizedImage::read_args(&mut reader, (self.width, self.height))?;
+                                let image_size = self.width * self.height * 4;
+                                let mut image_buffer = vec![0u8; image_size as usize];
+                                quantized_image.extract(&mut image_buffer);
+
+                                let file = File::create(output_path)?;
+                                let ref mut w = BufWriter::new(file);
+                                let mut encoder = png::Encoder::new(w, self.width, self.height);
+                                encoder.set_color(png::ColorType::Rgba);
+                                encoder.set_depth(png::BitDepth::Eight);
+                                encoder.set_source_gamma(png::ScaledFloat::from_scaled(45455));
+                                encoder.set_source_gamma(png::ScaledFloat::new(1.0 / 2.2));
+                                let source_chromaticities = png::SourceChromaticities::new(
+                                    (0.31270, 0.32900),
+                                    (0.64000, 0.33000),
+                                    (0.30000, 0.60000),
+                                    (0.15000, 0.06000)
+                                );
+                                encoder.set_source_chromaticities(source_chromaticities);
+                                let mut writer = encoder.write_header()?;
+                                writer.write_image_data(&image_buffer)?;
+                                Ok(())
+                            },
+                            _ => None.context(format!("unhandled compression type \"{:?}\" for image {:?}", compression_type, name)),
+                        }
+                    },
+                    _ => None.context(format!("unhandled image type {:?}, layout={:?}, rendition={:?}", name, self.csimetadata.layout, &self.rendition_data)),
+                }
+            },
+            _ => Ok(())
+        }
     }
 }
 

@@ -228,10 +228,13 @@ pub enum CompressionType {
     JPEGLZFSE,
     Blurred,
     ASTC,
+    // DXTC,
     #[serde(rename = "palette-img")]
     PaletteImg = 8,
-    #[serde(rename = "deepmap2")]
+    HEVC,
+    #[serde(rename = "deepmap-lzfse")]
     DeepMapLZFSE,
+    DeepMap2,
 }
 
 #[derive(Debug, Serialize)]
@@ -258,6 +261,7 @@ type BGRAColor = u32;
 #[derive(Debug, BinRead, Clone)]
 #[br(import(width: u32, height: u32))]
 #[br(magic = 0xCAFEF00Du32)]
+#[br(little)]
 pub struct QuantizedImage {
     _version: u32,
     pub color_count: u16,
@@ -265,6 +269,23 @@ pub struct QuantizedImage {
     pub color_table: Vec<BGRAColor>,
     #[br(count = width * height / 2)]
     pub data: Vec<u16>, // little endian u16, two u8 indices per value
+}
+
+impl QuantizedImage {
+    pub fn extract(&self, buffer: &mut [u8]) {
+        for i in 0..self.data.len() {
+            let a = (self.data[i] >> 8) as usize;
+            let b = (self.data[i] & 0xff) as usize;
+            buffer[8 * i + 0] = ((self.color_table[a] >> 8) & 0xff) as u8;
+            buffer[8 * i + 1] = ((self.color_table[a] >> 16) & 0xff) as u8;
+            buffer[8 * i + 2] = ((self.color_table[a] >> 24) & 0xff) as u8;
+            buffer[8 * i + 3] = ((self.color_table[a] >> 0) & 0xff) as u8;
+            buffer[8 * i + 4] = ((self.color_table[b] >> 8) & 0xff) as u8;
+            buffer[8 * i + 5] = ((self.color_table[b] >> 16) & 0xff) as u8;
+            buffer[8 * i + 6] = ((self.color_table[b] >> 24) & 0xff) as u8;
+            buffer[8 * i + 7] = ((self.color_table[b] >> 0) & 0xff) as u8;
+        }
+    }
 }
 
 #[derive(BinRead, Debug)]
