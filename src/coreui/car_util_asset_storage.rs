@@ -65,7 +65,6 @@ impl CarUtilAssetStorage {
             .into_iter()
             .map(|(name, token)| (name.to_string(), token))
             .collect();
-        dbg!(&facetkeysdb);
 
         let bitmapkeys: Option<Vec<(NameIdentifier, [u8; 22])>> = bom_storage
             .get_named_typed_block::<bom::Tree>("BITMAPKEYS", &mut reader, ())
@@ -87,7 +86,6 @@ impl CarUtilAssetStorage {
                     .collect()
             })
             .ok();
-        dbg!(&bitmapkeys);
 
         let rendition_sha_digests: BTreeMap<rendition::Key, Vec<u8>> = bom_storage
             .get_named_typed_block::<bom::Tree>("RENDITIONS", &mut reader, ())
@@ -114,7 +112,6 @@ impl CarUtilAssetStorage {
                     .collect()
             })
             .unwrap_or_default();
-        dbg!(&rendition_sha_digests);
 
         let imagedb: Option<BTreeMap<rendition::Key, csi::Header>> = bom_storage
             .get_named_typed_block::<bom::Tree>("RENDITIONS", &mut reader, ())
@@ -123,7 +120,6 @@ impl CarUtilAssetStorage {
             })
             .ok()
             .and_then(|vector| Some(vector.into_iter().collect()));
-        dbg!(&imagedb);
 
         let appearancedb: Option<BTreeMap<String, u32>> = bom_storage
             .get_named_typed_block::<bom::Tree>("APPEARANCEKEYS", &mut reader, ())
@@ -134,7 +130,6 @@ impl CarUtilAssetStorage {
                 path.indices
                     .into_iter()
                     .map(|indices| {
-                        dbg!(&indices);
                         let key_range = &bom_storage.block_storage.items[indices.index0 as usize];
                         reader.set_position((key_range.address) as u64);
                         let key = <u32>::read_le(&mut reader)?;
@@ -148,7 +143,6 @@ impl CarUtilAssetStorage {
                     .collect()
             })
             .ok();
-        dbg!(&appearancedb);
 
         let bitmapkeydb = bitmapkeys;
         let store = CommonAssetStorage {

@@ -86,7 +86,6 @@ pub struct Attribute {
 fn parse_rendition_attribute_type_u16() -> binrw::BinResult<AttributeType> {
     let raw = u16::read_options(reader, endian, ())?;
     let attribute = num::FromPrimitive::from_u16(raw);
-    dbg!(raw);
     attribute.ok_or(binrw::Error::NoVariantMatch {
         pos: reader.stream_position().unwrap(),
     })

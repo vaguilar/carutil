@@ -264,7 +264,6 @@ impl AssetUtilEntry {
         // TODO: fix this
         let opaque = match layout {
             coreui::rendition::LayoutType32::Image => {
-                dbg!(csi_header.properties());
                 let opaque = csi_header
                     .properties()
                     .into_iter()

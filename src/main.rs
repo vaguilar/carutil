@@ -96,8 +96,9 @@ fn main() -> Result<()> {
         }
         Commands::Debug { car_path } => {
             let car = coreui::CarUtilAssetStorage::from(&car_path, false)?;
-            for i in car.theme_store.store.imagedb.unwrap() {
-                dbg!(i);
+
+            for i in car.theme_store.store.imagedb.unwrap_or_default() {
+                println!("{:#?}", i);
             }
             Ok(())
         }
