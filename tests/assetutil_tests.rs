@@ -1,6 +1,6 @@
-use carutil_lib::coreui;
 use carutil_lib::assetutil;
 use carutil_lib::assetutil::ToAssetUtilHeader;
+use carutil_lib::coreui;
 
 use assert_json_diff::assert_json_eq;
 use assert_json_diff::assert_json_matches;
