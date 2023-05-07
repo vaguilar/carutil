@@ -1,15 +1,10 @@
-use std::collections::BTreeMap;
-use std::fs;
-use std::io::Cursor;
-
 use anyhow::Result;
 
-use binrw::BinRead;
 use clap::arg;
 use clap::command;
 use clap::CommandFactory;
 use clap::Parser;
-use memmap::Mmap;
+use clap::Subcommand;
 
 use assetutil::ToAssetUtilHeader;
 
@@ -19,79 +14,92 @@ mod common;
 mod coregraphics;
 mod coreui;
 
-#[derive(Parser, Debug)]
+#[derive(Parser)]
 #[command(author, version, about, long_about = None)]
-struct Args {
-    /// dumps JSON describing the contents of the .car input file
-    #[arg(short = 'I', long, value_name = "inputfile")]
-    info: Option<String>,
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
 
-    /// dumps structs from .car file
-    #[arg(short = 'd', long, value_name = "inputfile")]
-    debug: Option<String>,
+#[derive(Subcommand)]
+enum Commands {
+    /// compatible with assetutil cli tool
+    #[command(rename_all = "lowercase")]
+    AssetUtil {
+        /// dumps JSON describing the contents of the .car input file
+        #[arg(short = 'I', long, value_name = "inputfile")]
+        info: Option<String>,
+    },
+    /// extract images from Assets.car
+    Extract {
+        /// path to Assets.car
+        car_path: String,
 
-    /// extract available images from .car file
-    #[arg(short = 'e', long, value_name = "inputfile")]
-    extract_images: Option<String>,
+        /// path to dump images
+        #[arg(short = 'o', long, value_name = "inputfile", default_value = ".")]
+        output_path: String,
+    },
+    /// dumps structs of parsed Assets.car
+    Debug {
+        /// path to Assets.car
+        car_path: String,
+    },
 }
 
 fn main() -> Result<()> {
-    let args = Args::parse();
-    if let Some(car_path) = args.info {
-        let car = coreui::CarUtilAssetStorage::from(&car_path, false)?;
+    let args = Cli::parse();
+    match args.command {
+        Commands::AssetUtil { info } => {
+            if let Some(car_path) = info {
+                let car = coreui::CarUtilAssetStorage::from(&car_path, false)?;
 
-        let asset_util_header = serde_json::to_value(car.asset_util_header())?;
-        let mut result: Vec<serde_json::Value> = vec![asset_util_header];
+                let asset_util_header = serde_json::to_value(car.asset_util_header())?;
+                let mut result: Vec<serde_json::Value> = vec![asset_util_header];
 
-        let mut entries =
-            assetutil::AssetUtilEntry::entries_from_asset_storage(&car.theme_store.store);
-        entries.sort_by(|a, b| {
-            (
-                a.asset_type.clone(),
-                a.name.clone(),
-                a.rendition_name.clone(),
-            )
-                .cmp(&(
-                    b.asset_type.clone(),
-                    b.name.clone(),
-                    b.rendition_name.clone(),
-                ))
-        });
-        for entry in entries {
-            let value = serde_json::to_value(entry)?;
-            result.push(value);
-        }
+                let mut entries =
+                    assetutil::AssetUtilEntry::entries_from_asset_storage(&car.theme_store.store);
+                entries.sort_by(|a, b| {
+                    (
+                        a.asset_type.clone(),
+                        a.name.clone(),
+                        a.rendition_name.clone(),
+                    )
+                        .cmp(&(
+                            b.asset_type.clone(),
+                            b.name.clone(),
+                            b.rendition_name.clone(),
+                        ))
+                });
+                for entry in entries {
+                    let value = serde_json::to_value(entry)?;
+                    result.push(value);
+                }
 
-        let json = serde_json::to_string_pretty(&result)?;
-        println!("{}", json);
-        Ok(())
-    } else if let Some(car_path) = args.debug {
-        // let asset_catalog = AssetCatalog::try_from(car_path.as_ref())?;
-        // dbg!(asset_catalog);
-        let file = fs::File::open(car_path.clone())?;
-        let mmap = unsafe { Mmap::map(&file).expect(&format!("Error mapping file {}", car_path)) };
-        let mut cursor = Cursor::new(mmap);
-
-        let bom_header = bom::Storage::read(&mut cursor)?;
-        for var in &bom_header.var_storage.vars {
-            println!("{:?}", &var.name);
-
-            // let index = var.index as usize;
-            // let pointer = &bom_header.index_header.pointers[index];
-        }
-        Ok(())
-    } else if let Some(car_path) = args.extract_images {
-        let car = coreui::CarUtilAssetStorage::from(&car_path, false)?;
-        let imagedb = car.theme_store.store.imagedb.unwrap_or_default();
-        for (_rendition_key, csi_header) in imagedb.iter() {
-            let result = csi_header.extract("/tmp/out/");
-            if let Err(err) = result {
-                eprintln!("{:?}", err);
+                let json = serde_json::to_string_pretty(&result)?;
+                println!("{}", json);
+                Ok(())
+            } else {
+                Cli::command().print_help()?;
+                Ok(())
             }
         }
-        Ok(())
-    } else {
-        Args::command().print_help()?;
-        Ok(())
+        Commands::Extract { car_path, output_path } => {
+            let car = coreui::CarUtilAssetStorage::from(&car_path, false)?;
+            let imagedb = car.theme_store.store.imagedb.unwrap_or_default();
+            for (_rendition_key, csi_header) in imagedb.iter() {
+                let result = csi_header.extract(&output_path);
+                if let Err(err) = result {
+                    eprintln!("{:?}", err);
+                }
+            }
+            Ok(())
+        }
+        Commands::Debug { car_path } => {
+            let car = coreui::CarUtilAssetStorage::from(&car_path, false)?;
+            for i in car.theme_store.store.imagedb.unwrap() {
+                dbg!(i);
+            }
+            Ok(())
+        }
     }
 }

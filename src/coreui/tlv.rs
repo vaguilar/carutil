@@ -75,13 +75,30 @@ pub enum RenditionType {
 impl Debug for RenditionType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Slices { height, width, .. } => f.write_fmt(format_args!("Slice {{ height: {}, width: {} }}", height, width)),
-            Self::Metrics { height, width, .. } => f.write_fmt(format_args!("Metrics {{ height: {}, width: {} }}", height, width)),
-            Self::BlendModeAndOpacity { blend, opacity, .. } => f.write_fmt(format_args!("BlendModeAndOpacity {{ blend: {}, opacity: {} }}", blend, opacity)),
-            Self::UTI { string, .. } => f.write_fmt(format_args!("UTI {{ string: {} }}", String::from_utf8_lossy(&string))),
-            Self::EXIFOrientation { orientation, .. } => f.write_fmt(format_args!("EXIFOrientation {{ orientation: {:?} }}", orientation)),
+            Self::Slices { height, width, .. } => f.write_fmt(format_args!(
+                "Slice {{ height: {}, width: {} }}",
+                height, width
+            )),
+            Self::Metrics { height, width, .. } => f.write_fmt(format_args!(
+                "Metrics {{ height: {}, width: {} }}",
+                height, width
+            )),
+            Self::BlendModeAndOpacity { blend, opacity, .. } => f.write_fmt(format_args!(
+                "BlendModeAndOpacity {{ blend: {}, opacity: {} }}",
+                blend, opacity
+            )),
+            Self::UTI { string, .. } => f.write_fmt(format_args!(
+                "UTI {{ string: {} }}",
+                String::from_utf8_lossy(&string)
+            )),
+            Self::EXIFOrientation { orientation, .. } => f.write_fmt(format_args!(
+                "EXIFOrientation {{ orientation: {:?} }}",
+                orientation
+            )),
             Self::IDK { data, .. } => f.write_fmt(format_args!("IDK {{ data: {:?} }}", data)),
-            Self::Unknown { tag, data, .. } => f.write_fmt(format_args!("IDK {{ tag: {}, data: {:?} }}", tag, data)),
+            Self::Unknown { tag, data, .. } => {
+                f.write_fmt(format_args!("IDK {{ tag: {}, data: {:?} }}", tag, data))
+            }
         }
     }
 }

@@ -1,14 +1,14 @@
 [package]
-name = "car_reader"
+name = "carutil"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "car_reader_lib"
+name = "carutil_lib"
 path = "src/lib.rs"
 
 [[bin]]
-name = "car_reader"
+name = "carutil"
 path = "src/main.rs"
 
 [dependencies]

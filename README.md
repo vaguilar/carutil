@@ -1,25 +1,29 @@
-# car-reader
-A cross-platform clone of the Mac `assetutil` tool.
+# carutil
+A cross-platform tool to read and extract images from Assets.car files. Also provides a clone of the Mac `assetutil` tool.
 
 ## Installation
 ```
-git clone https://github.com/vaguilar/car-reader.git
-cd car-reader
+git clone https://github.com/vaguilar/carutil.git
+cd carutil
 cargo build
 ```
 
 ## Usage
 ```
-cargo run -- --info ./path/to/Assets.car
+cargo run -- assetutil --info ./path/to/Assets.car
 ```
 
-## Options
+## Commands 
 ```
-Usage: car_reader [OPTIONS]
+Usage: carutil [OPTIONS]
+
+Commands:
+  assetutil  compatible with assetutil cli tool
+  extract    extract images from Assets.car
+  debug      dumps structs of parsed Assets.car
+  help       Print this message or the help of the given subcommand(s)
 
 Options:
-  -I, --info <inputfile>   dumps JSON describing the contents of the .car input file
-  -d, --debug <inputfile>  dumps structs from .car file
-  -h, --help               Print help
-  -V, --version            Print version
+  -h, --help     Print help
+  -V, --version  Print version
 ```

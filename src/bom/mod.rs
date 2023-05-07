@@ -122,7 +122,8 @@ impl Debug for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
             "Var {{ block_id: {}, name: {:?} }}",
-            self.block_id, self.name()
+            self.block_id,
+            self.name()
         ))
     }
 }
