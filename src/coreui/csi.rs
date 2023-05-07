@@ -165,14 +165,17 @@ impl Header {
         result
     }
 
-    pub fn extract(&self, path: &str) -> Result<()> {
+    pub fn extract(&self, path: &str) -> Result<Option<String>> {
         let name = self.csimetadata.name();
         let output_path = Path::new(path).join(&name);
+        let output_path_str = output_path
+            .to_str()
+            .context(format!("Unable to get output path for {:?}", name))?;
         match self.csimetadata.layout {
             rendition::LayoutType32::Image => match &self.rendition_data {
                 rendition::Rendition::RawData { raw_data, .. } => {
-                    fs::write(output_path, raw_data.0.to_owned())?;
-                    Ok(())
+                    fs::write(&output_path, raw_data.0.to_owned())?;
+                    Ok(Some(output_path_str.to_string()))
                 }
                 rendition::Rendition::Theme {
                     compression_type,
@@ -191,7 +194,7 @@ impl Header {
                         let mut image_buffer = vec![0u8; image_size as usize];
                         quantized_image.extract(&mut image_buffer);
 
-                        let file = File::create(output_path)?;
+                        let file = File::create(&output_path)?;
                         let ref mut w = BufWriter::new(file);
                         let mut encoder = png::Encoder::new(w, self.width, self.height);
                         encoder.set_color(png::ColorType::Rgba);
@@ -207,7 +210,12 @@ impl Header {
                         encoder.set_source_chromaticities(source_chromaticities);
                         let mut writer = encoder.write_header()?;
                         writer.write_image_data(&image_buffer)?;
-                        Ok(())
+                        Ok(Some(output_path_str.to_string()))
+                    }
+                    CompressionType::HEVC => {
+                        // first 8 bytes are some type of header??
+                        fs::write(&output_path, &raw_data.0[8..])?;
+                        Ok(Some(output_path_str.to_string()))
                     }
                     _ => None.context(format!(
                         "unhandled compression type \"{:?}\" for image {:?}",
@@ -219,7 +227,7 @@ impl Header {
                     name, self.csimetadata.layout, &self.rendition_data
                 )),
             },
-            _ => Ok(()),
+            _ => Ok(None),
         }
     }
 }

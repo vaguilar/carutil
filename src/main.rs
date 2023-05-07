@@ -92,7 +92,9 @@ fn main() -> Result<()> {
             for (_rendition_key, csi_header) in imagedb.iter() {
                 let result = csi_header.extract(&output_path);
                 if let Err(err) = result {
-                    eprintln!("{:?}", err);
+                    eprintln!("Unable to extract: {}", err);
+                } else if let Ok(Some(output_path)) = result {
+                    eprintln!("Extracted: {}", output_path);
                 }
             }
             Ok(())
