@@ -9,8 +9,19 @@ cargo build
 ```
 
 ## Usage
+Output info like `assetutil`:
 ```
 cargo run -- assetutil --info ./path/to/Assets.car
+```
+
+Extract images to a destination:
+```
+cargo run -- extract --output-path /tmp ./path/to/Assets.car
+```
+
+Dump structs from Assets.car to stdout for debugging:
+```
+cargo run -- debug ./path/to/Assets.car
 ```
 
 ## Commands 
