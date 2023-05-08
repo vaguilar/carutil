@@ -232,7 +232,8 @@ impl CarUtilAssetStorage {
             unknown3: 0,
         };
         tree.write(&mut writer)?;
-        let renditions_tree_block_id = block_storage.add_item(next_address, writer.position() as u32);
+        let renditions_tree_block_id =
+            block_storage.add_item(next_address, writer.position() as u32);
 
         // BOM BlockStorage
         let block_storage_address = 0x8000; // arbitrary, TODO: fix
@@ -341,7 +342,7 @@ impl CommonAssetStorage {
 #[derive(BinRead, BinWrite)]
 #[brw(little)]
 pub struct CarHeader {
-    magic: u32,
+    pub magic: u32,
     pub core_ui_version: u32,
     pub storage_version: u32,
     pub storage_timestamp: u32,
@@ -353,6 +354,37 @@ pub struct CarHeader {
     pub schema_version: u32,
     pub color_space_id: u32,
     pub key_semantics: u32,
+}
+
+impl CarHeader {
+    pub fn new(
+        core_ui_version: u32,
+        storage_version: u32,
+        storage_timestamp: u32,
+        rendition_count: u32,
+        main_version_string: &str,
+        version_string: &str,
+        uuid: [u8; 16],
+        associated_checksum: u32,
+        schema_version: u32,
+        color_space_id: u32,
+        key_semantics: u32,
+    ) -> Self {
+        CarHeader {
+            magic: 0x43544152,
+            core_ui_version,
+            storage_version,
+            storage_timestamp,
+            rendition_count,
+            main_version_string: common::str_to_sized_slice128(main_version_string),
+            version_string: common::str_to_sized_slice256(version_string),
+            uuid,
+            associated_checksum,
+            schema_version,
+            color_space_id,
+            key_semantics,
+        }
+    }
 }
 
 impl Debug for CarHeader {
@@ -383,11 +415,28 @@ impl Debug for CarHeader {
 #[derive(BinRead, BinWrite)]
 #[brw(little)]
 pub struct CarExtendedMetadata {
-    magic: u32,
+    pub magic: u32,
     pub thinning_arguments: [u8; 256],
     pub deployment_platform_version: [u8; 256],
     pub deployment_platform: [u8; 256],
     pub authoring_tool: [u8; 256],
+}
+
+impl CarExtendedMetadata {
+    pub fn new(
+        thinning_arguments: &str,
+        deployment_platform_version: &str,
+        deployment_platform: &str,
+        authoring_tool: &str,
+    ) -> Self {
+        CarExtendedMetadata {
+            magic: 0x4154454D,
+            thinning_arguments: common::str_to_sized_slice256(thinning_arguments),
+            deployment_platform_version: common::str_to_sized_slice256(deployment_platform_version),
+            deployment_platform: common::str_to_sized_slice256(deployment_platform),
+            authoring_tool: common::str_to_sized_slice256(authoring_tool),
+        }
+    }
 }
 
 impl Debug for CarExtendedMetadata {

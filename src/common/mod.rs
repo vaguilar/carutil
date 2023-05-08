@@ -53,3 +53,19 @@ pub fn parse_padded_string(buffer: &[u8]) -> String {
         .unwrap_or((buffer.len(), &0));
     String::from_utf8_lossy(&buffer[..string_length]).to_string()
 }
+
+pub fn str_to_sized_slice128(string: &str) -> [u8; 128] {
+    let mut slice: [u8; 128] = [0; 128];
+    for (i, c) in string.as_bytes().into_iter().enumerate() {
+        slice[i] = *c;
+    }
+    slice
+}
+
+pub fn str_to_sized_slice256(string: &str) -> [u8; 256] {
+    let mut slice: [u8; 256] = [0; 256];
+    for (i, c) in string.as_bytes().into_iter().enumerate() {
+        slice[i] = *c;
+    }
+    slice
+}

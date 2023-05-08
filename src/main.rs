@@ -8,6 +8,7 @@ use clap::Subcommand;
 
 use assetutil::ToAssetUtilHeader;
 
+mod actool;
 mod assetutil;
 mod bom;
 mod common;
@@ -24,11 +25,34 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// compatible with assetutil cli tool
-    #[command(rename_all = "lowercase")]
-    AssetUtil {
+    Assetutil {
         /// dumps JSON describing the contents of the .car input file
         #[arg(short = 'I', long, value_name = "inputfile")]
         info: Option<String>,
+    },
+    /// compatible with actool cli tool
+    Actool {
+        /// By default, actool provides output in the form of an XML property
+        /// list. Specifying binary1 will instruct actool to output a binary
+        /// property list. Similarly, xml1 specifies an XML property list,
+        /// and human-readable-text specifies human readable text.
+        #[arg(long, value_name = "format")]
+        output_format: Option<String>,
+
+        /// Compiles document and writes the output to the specified directory
+        /// path. The name of the CAR file will be Assets.car. The compile
+        /// option instructs actool to convert an asset catalog to files
+        /// optimized for runtime.
+        #[arg(long, value_name = "path")]
+        compile: Option<String>,
+
+        /// Specifies the target platform to compile for. This option influences
+        /// warnings, validation, and which images are included in the built
+        /// product.
+        #[arg(long, value_name = "platform_name")]
+        platform: Option<String>,
+
+        document: String,
     },
     /// extract images from Assets.car
     Extract {
@@ -49,7 +73,7 @@ enum Commands {
 fn main() -> Result<()> {
     let args = Cli::parse();
     match args.command {
-        Commands::AssetUtil { info } => {
+        Commands::Assetutil { info } => {
             if let Some(car_path) = info {
                 let car = coreui::CarUtilAssetStorage::from(&car_path, false)?;
 
@@ -80,6 +104,18 @@ fn main() -> Result<()> {
                 Ok(())
             } else {
                 Cli::command().print_help()?;
+                Ok(())
+            }
+        }
+        Commands::Actool {
+            output_format,
+            compile,
+            platform,
+            document,
+        } => {
+            if let Some(output_path) = compile {
+                actool::compile(&document, &output_path)
+            } else {
                 Ok(())
             }
         }

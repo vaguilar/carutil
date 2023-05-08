@@ -14,13 +14,21 @@ use crate::coregraphics;
 #[derive(Debug, BinRead, BinWrite)]
 #[brw(little, magic = b"tmfk")]
 pub struct KeyFormat {
-    pub _version: u32,
-    pub _max_count: u32,
-    #[br(count = _max_count)]
+    pub version: u32,
+    pub max_count: u32,
+    #[br(count = max_count)]
     pub attribute_types: Vec<AttributeType>,
 }
 
 impl KeyFormat {
+    pub fn new(attribute_types: Vec<AttributeType>) -> Self {
+        KeyFormat {
+            version: 1,
+            max_count: attribute_types.len() as u32,
+            attribute_types,
+        }
+    }
+
     pub fn map(&self, key: &Key) -> Vec<(AttributeType, u16)> {
         zip(self.attribute_types.clone(), key.raw).collect()
     }
@@ -29,7 +37,7 @@ impl KeyFormat {
 #[derive(BinRead, BinWrite, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
 #[brw(little)]
 pub struct Key {
-    raw: [u16; 18],
+    pub raw: [u16; 18],
 }
 
 impl Debug for Key {
