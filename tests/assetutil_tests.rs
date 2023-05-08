@@ -48,7 +48,7 @@ fn header_simple() {
     });
 
     let asset_storage =
-        coreui::CarUtilAssetStorage::from(CAR_PATH, false).expect("Unable to aprse Assets.car");
+        coreui::CarUtilAssetStorage::from(CAR_PATH, false).expect("Unable to parse Assets.car");
     let header = serde_json::to_value(asset_storage.asset_util_header())
         .expect("Unable to serialize to JSON value");
     assert_json_eq!(header, expected_header);
@@ -76,7 +76,7 @@ fn color_simple() {
     });
 
     let asset_storage =
-        coreui::CarUtilAssetStorage::from(CAR_PATH, false).expect("Unable to aprse Assets.car");
+        coreui::CarUtilAssetStorage::from(CAR_PATH, false).expect("Unable to parse Assets.car");
     let entries =
         assetutil::AssetUtilEntry::entries_from_asset_storage(&asset_storage.theme_store.store);
     let asset = entries
@@ -110,7 +110,7 @@ fn data_simple() {
     });
 
     let asset_storage =
-        coreui::CarUtilAssetStorage::from(CAR_PATH, false).expect("Unable to aprse Assets.car");
+        coreui::CarUtilAssetStorage::from(CAR_PATH, false).expect("Unable to parse Assets.car");
     let entries =
         assetutil::AssetUtilEntry::entries_from_asset_storage(&asset_storage.theme_store.store);
     let asset = entries
@@ -145,7 +145,7 @@ fn data_jpeg() {
     });
 
     let asset_storage =
-        coreui::CarUtilAssetStorage::from(CAR_PATH, false).expect("Unable to aprse Assets.car");
+        coreui::CarUtilAssetStorage::from(CAR_PATH, false).expect("Unable to parse Assets.car");
     let entries =
         assetutil::AssetUtilEntry::entries_from_asset_storage(&asset_storage.theme_store.store);
     let asset = entries
@@ -182,7 +182,7 @@ fn image_simple() {
     });
 
     let asset_storage =
-        coreui::CarUtilAssetStorage::from(CAR_PATH, false).expect("Unable to aprse Assets.car");
+        coreui::CarUtilAssetStorage::from(CAR_PATH, false).expect("Unable to parse Assets.car");
     let entries =
         assetutil::AssetUtilEntry::entries_from_asset_storage(&asset_storage.theme_store.store);
     let asset = entries
