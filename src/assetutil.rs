@@ -252,8 +252,13 @@ impl AssetUtilEntry {
 
         // TODO: fix
         let colorspace = match &csi_header.rendition_data {
-            coreui::rendition::Rendition::Color { .. } => Some(coregraphics::ColorSpace::SRGB),
-            coreui::rendition::Rendition::Theme { .. } => Some(coregraphics::ColorSpace::SRGB),
+            coreui::rendition::Rendition::Theme { .. }
+            | coreui::rendition::Rendition::Color { .. } => match color_model {
+                Some(coregraphics::ColorModel::Monochrome) => {
+                    Some(coregraphics::ColorSpace::GrayGamma2_2)
+                }
+                _ => Some(coregraphics::ColorSpace::SRGB),
+            },
             _ => None,
         };
 

@@ -50,8 +50,9 @@ pub enum ColorSpace {
 #[derive(Debug, FromPrimitive, BinRead, Clone, Serialize)]
 #[br(repr(u32))]
 pub enum ColorModel {
-    Monochrome = 0,
+    None = 0, // ???
     RGB,
+    Monochrome,
     #[serde(rename = "RGB")]
     AlsoRGB = 14, // ???
 }
