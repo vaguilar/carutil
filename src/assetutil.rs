@@ -290,19 +290,9 @@ impl AssetUtilEntry {
             .find(|(attribute, _)| *attribute == coreui::rendition::AttributeType::Identifier)
             .and_then(|(_, value)| Some(*value));
 
-        // TODO: fix this
         let opaque = match layout {
             coreui::rendition::LayoutType32::Image => {
-                let opaque = csi_header
-                    .properties()
-                    .into_iter()
-                    .find_map(|attribute_type| match attribute_type {
-                        coreui::tlv::RenditionType::BlendModeAndOpacity { opacity, .. } => {
-                            Some(opacity == 1.0)
-                        }
-                        _ => None,
-                    });
-                opaque.or(Some(csi_header.rendition_flags.is_opaque()))
+                Some(csi_header.is_opaque())
             }
             _ => None,
         };

@@ -96,7 +96,7 @@ impl RenditionFlags {
     }
 
     pub fn is_opaque(&self) -> bool {
-        self.0 & 0x2 == 0x2
+        self.0 & 16 == 16
     }
 
     pub fn has_slice_information(&self) -> bool {
@@ -238,6 +238,29 @@ impl Header {
                 )),
             },
             _ => Ok(None),
+        }
+    }
+
+    pub fn is_opaque(&self) -> bool {
+        // it seems like this actually has to check if the image has any transparent pixels
+        match &self.rendition_data {
+            rendition::Rendition::Theme { compression_type, raw_data, .. } => {
+                match compression_type {
+                    CompressionType::PaletteImg => {
+                        let mut uncompressed_rendition_data = vec![];
+                        lzfse_rust::decode_bytes(&raw_data.0, &mut uncompressed_rendition_data).unwrap();
+                        let mut reader = Cursor::new(&mut uncompressed_rendition_data);
+                        let quantized_image = rendition::QuantizedImage::read_args(
+                            &mut reader,
+                            (self.width, self.height),
+                        ).unwrap();
+                        // any non 0xff values for the alpha channel?
+                        !quantized_image.color_table.iter().any(|pixel| (*pixel & 0xff) != 0xff)
+                    },
+                    _ => self.rendition_flags.is_opaque(),
+                }
+            },
+            _ => self.rendition_flags.is_opaque(),
         }
     }
 }
