@@ -152,7 +152,8 @@ pub struct Header {
     pub csibitmaplist: BitmapList,
     #[br(count = csibitmaplist.tlv_length)]
     pub tlv_data: common::RawData,
-    pub rendition_data: rendition::Rendition,
+    #[br(if(csibitmaplist.rendition_length > 0))]
+    pub rendition_data: Option<rendition::Rendition>,
 }
 
 impl Header {
@@ -173,15 +174,15 @@ impl Header {
             .context(format!("Unable to get output path for {:?}", name))?;
         match self.csimetadata.layout {
             rendition::LayoutType32::Image => match &self.rendition_data {
-                rendition::Rendition::RawData { raw_data, .. } => {
+                Some(rendition::Rendition::RawData { raw_data, .. }) => {
                     fs::write(&output_path, raw_data.0.to_owned())?;
                     Ok(Some(output_path_str.to_string()))
                 }
-                rendition::Rendition::Theme {
+                Some(rendition::Rendition::Theme {
                     compression_type,
                     raw_data,
                     ..
-                } => match compression_type {
+                }) => match compression_type {
                     CompressionType::PaletteImg => {
                         let mut uncompressed_rendition_data = vec![];
                         lzfse_rust::decode_bytes(&raw_data.0, &mut uncompressed_rendition_data)?;
@@ -244,11 +245,11 @@ impl Header {
     pub fn is_opaque(&self) -> bool {
         // it seems like this actually has to check if the image has any transparent pixels
         match &self.rendition_data {
-            rendition::Rendition::Theme {
+            Some(rendition::Rendition::Theme {
                 compression_type,
                 raw_data,
                 ..
-            } => {
+            }) => {
                 match compression_type {
                     CompressionType::PaletteImg => {
                         let mut uncompressed_rendition_data = vec![];

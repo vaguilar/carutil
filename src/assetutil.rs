@@ -241,7 +241,7 @@ impl AssetUtilEntry {
         };
 
         let color_components = match &csi_header.rendition_data {
-            coreui::rendition::Rendition::Color { components, .. } => Some(components.to_owned()),
+            Some(coreui::rendition::Rendition::Color { components, .. }) => Some(components.to_owned()),
             _ => None,
         };
 
@@ -252,8 +252,9 @@ impl AssetUtilEntry {
 
         // TODO: fix
         let colorspace = match &csi_header.rendition_data {
-            coreui::rendition::Rendition::Theme { .. }
-            | coreui::rendition::Rendition::Color { .. } => match color_model {
+            Some(coreui::rendition::Rendition::Theme { .. })
+            | Some(coreui::rendition::Rendition::ThemeCBCK { .. })
+            | Some(coreui::rendition::Rendition::Color { .. }) => match color_model {
                 Some(coregraphics::ColorModel::Monochrome) => {
                     Some(coregraphics::ColorSpace::GrayGamma2_2)
                 }
@@ -263,10 +264,13 @@ impl AssetUtilEntry {
         };
 
         let compression = match &csi_header.rendition_data {
-            coreui::rendition::Rendition::Theme {
+            Some(coreui::rendition::Rendition::Theme {
                 compression_type, ..
-            } => Some(*compression_type),
-            coreui::rendition::Rendition::RawData { .. } => match layout {
+            }) => Some(*compression_type),
+            Some(coreui::rendition::Rendition::ThemeCBCK {
+                compression_type, ..
+            }) => Some(*compression_type),
+            Some(coreui::rendition::Rendition::RawData { .. }) => match layout {
                 coreui::rendition::LayoutType32::Data => {
                     Some(coreui::rendition::CompressionType::Uncompressed)
                 }
@@ -276,9 +280,9 @@ impl AssetUtilEntry {
         };
 
         let data_length = match &csi_header.rendition_data {
-            coreui::rendition::Rendition::RawData {
+            Some(coreui::rendition::Rendition::RawData {
                 _raw_data_length, ..
-            } => match layout {
+            }) => match layout {
                 coreui::rendition::LayoutType32::Data => Some(*_raw_data_length),
                 _ => None,
             },
@@ -360,9 +364,12 @@ impl AssetUtilEntry {
 
         let template_mode = match layout {
             coreui::rendition::LayoutType32::Image => match &csi_header.rendition_data {
-                coreui::rendition::Rendition::Theme {
+                Some(coreui::rendition::Rendition::Theme {
                     compression_type, ..
-                } => {
+                }) |
+                Some(coreui::rendition::Rendition::ThemeCBCK {
+                    compression_type, ..
+                }) => {
                     if *compression_type == coreui::rendition::CompressionType::PaletteImg {
                         csi_header.rendition_flags.template_rendering_mode()
                     } else {

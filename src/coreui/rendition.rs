@@ -177,6 +177,20 @@ pub enum Rendition {
         #[br(count = _raw_data_length)]
         raw_data: RawData,
     },
+    // Why is there sometimes two levels here?
+    #[br(magic = b"MLEC")]
+    ThemeCBCK {
+        version: u32,
+        compression_type: CompressionType,
+        idk: u32,
+        #[br(magic = b"KCBC")]
+        a: u32,
+        b: u32,
+        c: u32,
+        _raw_data_length: u32,
+        #[br(count = _raw_data_length)]
+        raw_data: RawData,
+    },
     // CELM ???
     #[br(magic = b"MLEC")]
     Theme {

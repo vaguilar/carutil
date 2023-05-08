@@ -115,13 +115,14 @@ impl CarUtilAssetStorage {
             })
             .unwrap_or_default();
 
-        let imagedb: Option<BTreeMap<rendition::Key, csi::Header>> = bom_storage
+        let imagedb = bom_storage
             .get_named_typed_block::<bom::Tree>("RENDITIONS", &mut reader, ())
             .and_then(|tree| {
                 tree.items_typed::<rendition::Key, csi::Header>(&bom_storage, &mut reader)
             })
-            .ok()
-            .and_then(|vector| Some(vector.into_iter().collect()));
+            .unwrap();
+        let imagedb = Some(imagedb.into_iter().collect());
+            // .and_then(|vector| Some(vector.into_iter().collect()));
 
         let appearancedb: Option<BTreeMap<String, u32>> = bom_storage
             .get_named_typed_block::<bom::Tree>("APPEARANCEKEYS", &mut reader, ())
