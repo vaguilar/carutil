@@ -213,8 +213,18 @@ impl Header {
                         Ok(Some(output_path_str.to_string()))
                     }
                     CompressionType::HEVC => {
-                        // first 8 bytes are some type of header??
+                        // first 8 bytes are a header??
                         fs::write(&output_path, &raw_data.0[8..])?;
+                        Ok(Some(output_path_str.to_string()))
+                    }
+                    CompressionType::ASTC => {
+                        let mut uncompressed_rendition_data = vec![];
+                        // first 12 bytes are a header??
+                        lzfse_rust::decode_bytes(
+                            &raw_data.0[12..],
+                            &mut uncompressed_rendition_data,
+                        )?;
+                        fs::write(&output_path, &uncompressed_rendition_data)?;
                         Ok(Some(output_path_str.to_string()))
                     }
                     _ => None.context(format!(
