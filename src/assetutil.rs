@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 
 use crate::common;
@@ -64,6 +65,9 @@ impl ToAssetUtilHeader for coreui::CarUtilAssetStorage {
 
 #[derive(Debug, Serialize)]
 pub struct AssetUtilEntry {
+    #[serde(rename(serialize = "Appearance"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub appearance: Option<String>,
     #[serde(rename(serialize = "AssetType"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub asset_type: Option<String>,
@@ -178,6 +182,7 @@ impl AssetUtilEntry {
                     facet_key,
                     rendition_key_values,
                     sha_digest,
+                    asset_storage.appearancedb.as_ref().unwrap_or(&BTreeMap::new()),
                 );
                 result.push(entry);
             }
@@ -190,8 +195,28 @@ impl AssetUtilEntry {
         facet_key: Option<String>,
         rendition_key_values: Vec<(coreui::rendition::AttributeType, u16)>,
         sha_digest: Vec<u8>,
+        appearancedb: &BTreeMap<String, u32>,
     ) -> AssetUtilEntry {
         let layout = csi_header.csimetadata.layout;
+
+        let appearance: Option<String> =
+            rendition_key_values
+                .iter()
+                .find_map(|(attribute, attribute_value)| {
+                    if *attribute == coreui::rendition::AttributeType::Appearance {
+                        appearancedb
+                            .iter()
+                            .find_map(|(appearance_string, appearance_index)| {
+                                if *attribute_value > 0 && *appearance_index == *attribute_value as u32 {
+                                    Some(appearance_string.to_owned())
+                                } else {
+                                    None
+                                }
+                            })
+                    } else {
+                        None
+                    }
+                });
 
         let asset_type = match layout {
             coreui::rendition::LayoutType32::Color => Some("Color".to_string()),
@@ -363,6 +388,7 @@ impl AssetUtilEntry {
         };
 
         AssetUtilEntry {
+            appearance,
             asset_type,
             bits_per_component,
             color_components,
