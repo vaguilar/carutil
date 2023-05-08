@@ -186,7 +186,10 @@ impl AssetUtilEntry {
                     facet_key,
                     rendition_key_values,
                     sha_digest,
-                    asset_storage.appearancedb.as_ref().unwrap_or(&BTreeMap::new()),
+                    asset_storage
+                        .appearancedb
+                        .as_ref()
+                        .unwrap_or(&BTreeMap::new()),
                 );
                 result.push(entry);
             }
@@ -211,7 +214,9 @@ impl AssetUtilEntry {
                         appearancedb
                             .iter()
                             .find_map(|(appearance_string, appearance_index)| {
-                                if *attribute_value > 0 && *appearance_index == *attribute_value as u32 {
+                                if *attribute_value > 0
+                                    && *appearance_index == *attribute_value as u32
+                                {
                                     Some(appearance_string.to_owned())
                                 } else {
                                     None
@@ -291,9 +296,7 @@ impl AssetUtilEntry {
             .and_then(|(_, value)| Some(*value));
 
         let opaque = match layout {
-            coreui::rendition::LayoutType32::Image => {
-                Some(csi_header.is_opaque())
-            }
+            coreui::rendition::LayoutType32::Image => Some(csi_header.is_opaque()),
             _ => None,
         };
 
