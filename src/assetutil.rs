@@ -359,9 +359,28 @@ impl AssetUtilEntry {
         });
 
         let template_mode = match layout {
-            coreui::rendition::LayoutType32::Image => {
-                csi_header.rendition_flags.template_rendering_mode()
-            }
+            coreui::rendition::LayoutType32::Image => match &csi_header.rendition_data {
+                coreui::rendition::Rendition::Theme {
+                    compression_type, ..
+                } => {
+                    if *compression_type == coreui::rendition::CompressionType::PaletteImg {
+                        csi_header.rendition_flags.template_rendering_mode()
+                    } else {
+                        if opaque == Some(true) {
+                            csi_header.rendition_flags.template_rendering_mode()
+                        } else {
+                            None
+                        }
+                    }
+                }
+                _ => {
+                    if opaque == Some(true) {
+                        csi_header.rendition_flags.template_rendering_mode()
+                    } else {
+                        None
+                    }
+                }
+            },
             _ => None,
         };
 
