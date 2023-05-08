@@ -1,3 +1,4 @@
+pub mod bitmap;
 mod car_util_asset_storage;
 mod color;
 pub mod csi;

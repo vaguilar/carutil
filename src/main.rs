@@ -101,10 +101,12 @@ fn main() -> Result<()> {
         }
         Commands::Debug { car_path } => {
             let car = coreui::CarUtilAssetStorage::from(&car_path, false)?;
-
-            for i in car.theme_store.store.imagedb.unwrap_or_default() {
-                println!("{:#?}", i);
-            }
+            dbg!(car.theme_store.store.header);
+            dbg!(car.theme_store.store.extended_metadata);
+            dbg!(car.theme_store.store.appearancedb);
+            dbg!(car.theme_store.store.bitmapkeydb);
+            dbg!(car.theme_store.store.facetkeysdb);
+            dbg!(car.theme_store.store.imagedb);
             Ok(())
         }
     }

@@ -66,13 +66,22 @@ impl Key {
     }
 }
 
-#[derive(BinRead, Debug)]
+#[derive(BinRead)]
 #[brw(little)]
 pub struct KeyToken {
     _cursor_hotspot: (u16, u16),
     _number_of_attributes: u16,
     #[br(count = _number_of_attributes)]
     pub attributes: Vec<Attribute>,
+}
+
+impl Debug for KeyToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "KeyToken {{ cursor_hotspot: ({}, {}),  attributes: {:?} }}",
+            self._cursor_hotspot.0, self._cursor_hotspot.1, self.attributes
+        ))
+    }
 }
 
 #[derive(BinRead, Debug)]
@@ -241,10 +250,11 @@ pub enum State {
     Normal,
 }
 
+// "Render As" in Xcode
 #[derive(Debug, Serialize, FromPrimitive)]
 #[serde(rename_all = "lowercase")]
 pub enum TemplateMode {
-    Automatic = 0,
+    Automatic = 0, // "Default"
     Original,
     Template,
 }

@@ -7,6 +7,7 @@ use sha2::Digest;
 use sha2::Sha256;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::io::Cursor;
 use std::{fs, time::UNIX_EPOCH};
 
@@ -16,6 +17,7 @@ use binrw::BinRead;
 use crate::bom;
 use crate::common;
 use crate::coreui;
+use crate::coreui::bitmap;
 
 pub type NameIdentifier = u32; // or u16?
 
@@ -66,7 +68,7 @@ impl CarUtilAssetStorage {
             .map(|(name, token)| (name.to_string(), token))
             .collect();
 
-        let bitmapkeys: Option<Vec<(NameIdentifier, [u8; 22])>> = bom_storage
+        let bitmapkeys: Option<Vec<(NameIdentifier, bitmap::Key)>> = bom_storage
             .get_named_typed_block::<bom::Tree>("BITMAPKEYS", &mut reader, ())
             .and_then(|tree| {
                 let path_range = bom_storage.block_storage.items[tree.path_block_id as usize];
@@ -79,7 +81,7 @@ impl CarUtilAssetStorage {
                         let value_pointer =
                             &bom_storage.block_storage.items[indices.index0 as usize];
                         reader.set_position((value_pointer.address) as u64);
-                        let value = <[u8; 22]>::read(&mut reader)?;
+                        let value = bitmap::Key::read(&mut reader)?;
                         Ok((key, value))
                     })
                     .into_iter()
@@ -187,10 +189,10 @@ impl StructuredThemeStore {
 }
 
 pub struct CommonAssetStorage {
-    pub header: CarHeader,                                        // CARHEADER
-    pub extended_metadata: CarExtendedMetadata,                   // EXTENDED_METADATA
-    pub renditionkeyfmt: rendition::KeyFormat,                    // KEYFORMAT
-    pub rendition_sha_digests: BTreeMap<rendition::Key, Vec<u8>>, // KEYFORMAT
+    pub header: CarHeader,                      // CARHEADER
+    pub extended_metadata: CarExtendedMetadata, // EXTENDED_METADATA
+    pub renditionkeyfmt: rendition::KeyFormat,  // KEYFORMAT
+    pub rendition_sha_digests: BTreeMap<rendition::Key, Vec<u8>>,
 
     pub imagedb: std::option::Option<BTreeMap<rendition::Key, csi::Header>>, // RENDITIONS
     // pub colordb: Option<Vec<db::Entry<Color>>>,
@@ -199,7 +201,7 @@ pub struct CommonAssetStorage {
     // pub _zcglyphdb: Option<Vec<Glyph>>, // zero code glyphs
     // pub _zcbezeldb: Option<Vec<Bezel>>, // zero code bezels
     pub facetkeysdb: Vec<(String, rendition::KeyToken)>, // FACETKEYS
-    pub bitmapkeydb: Option<Vec<(NameIdentifier, [u8; 22])>>, // BITMAPKEYS
+    pub bitmapkeydb: Option<Vec<(NameIdentifier, bitmap::Key)>>, // BITMAPKEYS
     pub appearancedb: Option<BTreeMap<String, u32>>,     // APPEARANCEKEYS
 }
 
@@ -229,10 +231,10 @@ impl CommonAssetStorage {
     }
 }
 
-#[derive(Debug, BinRead, BinWrite)]
+#[derive(BinRead, BinWrite)]
 #[brw(little)]
 pub struct CarHeader {
-    _magic: u32,
+    magic: u32,
     pub core_ui_version: u32,
     pub storage_version: u32,
     pub storage_timestamp: u32,
@@ -246,14 +248,63 @@ pub struct CarHeader {
     pub key_semantics: u32,
 }
 
-#[derive(Debug, BinRead, BinWrite)]
+impl Debug for CarHeader {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CarHeader")
+            .field("_magic", &self.magic)
+            .field("core_ui_version", &self.core_ui_version)
+            .field("storage_version", &self.storage_version)
+            .field("storage_timestamp", &self.storage_timestamp)
+            .field("rendition_count", &self.rendition_count)
+            .field(
+                "main_version_string",
+                &common::parse_padded_string(&self.main_version_string),
+            )
+            .field(
+                "version_string",
+                &common::parse_padded_string(&self.version_string),
+            )
+            .field("uuid", &self.uuid)
+            .field("associated_checksum", &self.associated_checksum)
+            .field("schema_version", &self.schema_version)
+            .field("color_space_id", &self.color_space_id)
+            .field("key_semantics", &self.key_semantics)
+            .finish()
+    }
+}
+
+#[derive(BinRead, BinWrite)]
 #[brw(little)]
 pub struct CarExtendedMetadata {
-    _magic: u32,
+    magic: u32,
     pub thinning_arguments: [u8; 256],
     pub deployment_platform_version: [u8; 256],
     pub deployment_platform: [u8; 256],
     pub authoring_tool: [u8; 256],
+}
+
+impl Debug for CarExtendedMetadata {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CarExtendedMetadata")
+            .field("magic", &self.magic)
+            .field(
+                "thinning_arguments",
+                &common::parse_padded_string(&self.thinning_arguments),
+            )
+            .field(
+                "deployment_platform_version",
+                &common::parse_padded_string(&self.deployment_platform_version),
+            )
+            .field(
+                "deployment_platform",
+                &common::parse_padded_string(&self.deployment_platform),
+            )
+            .field(
+                "authoring_tool",
+                &common::parse_padded_string(&self.authoring_tool),
+            )
+            .finish()
+    }
 }
 
 #[derive(Debug)]

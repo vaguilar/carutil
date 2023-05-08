@@ -6,7 +6,7 @@ use crate::coregraphics;
 use crate::coreui;
 use hex::ToHex;
 use num_traits::FromPrimitive;
-use serde::{ser::SerializeMap, Serialize};
+use serde::Serialize;
 
 // version of the assetutil tool, this is hardcoded to match current version
 pub static VERSION: f64 = 804.3;
