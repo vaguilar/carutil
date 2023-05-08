@@ -36,6 +36,9 @@ pub struct AssetUtilHeader {
     pub schema_version: u32,
     #[serde(rename(serialize = "StorageVersion"))]
     pub storage_version: u32,
+    #[serde(rename(serialize = "ThinningParameters"))]
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub thinning_parameters: String,
     #[serde(rename(serialize = "Timestamp"))]
     pub timestamp: u32,
 }
@@ -59,6 +62,7 @@ impl ToAssetUtilHeader for coreui::CarUtilAssetStorage {
             schema_version: self.theme_store.store.header.schema_version,
             storage_version: self.theme_store.store.header.storage_version,
             timestamp: self.theme_store.store.header.storage_timestamp,
+            thinning_parameters: self.theme_store.store.thinning_arguments(),
         }
     }
 }
