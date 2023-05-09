@@ -218,10 +218,10 @@ pub enum Rendition {
 
 #[derive(Debug, BinRead, Clone, PartialEq, PartialOrd)]
 pub struct MultisizeImageSetEntry {
-    _width: u32,
-    _height: u32,
-    _index: u16,
-    _idiom: Idiom,
+    pub width: u32,
+    pub height: u32,
+    pub index: u16,
+    pub idiom: Idiom,
 }
 
 #[derive(Debug, BinRead, Clone, FromPrimitive, Serialize, PartialEq, PartialOrd)]

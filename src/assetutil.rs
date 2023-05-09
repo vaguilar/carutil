@@ -126,6 +126,9 @@ pub struct AssetUtilEntry {
     #[serde(rename(serialize = "SizeOnDisk"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub size_on_disk: Option<u32>,
+    #[serde(rename(serialize = "Sizes"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sizes: Option<Vec<String>>,
     #[serde(rename(serialize = "State"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<coreui::rendition::State>,
@@ -231,6 +234,7 @@ impl AssetUtilEntry {
             coreui::rendition::LayoutType32::Color => Some("Color".to_string()),
             coreui::rendition::LayoutType32::Data => Some("Data".to_string()),
             coreui::rendition::LayoutType32::Image => Some("Image".to_string()),
+            coreui::rendition::LayoutType32::MultisizeImage => Some("MultiSized Image".to_string()),
             _ => None,
         };
 
@@ -354,6 +358,18 @@ impl AssetUtilEntry {
             184 + csi_header.csibitmaplist.tlv_length + csi_header.csibitmaplist.rendition_length,
         );
 
+        let sizes = match &csi_header.rendition_data {
+                Some(coreui::rendition::Rendition::MultisizeImageSet {
+                    entries, ..
+                }) => {
+                    Some(entries.iter().map(|entry| {
+                        format!("{}x{} index:{} idiom:{:?}", entry.width, entry.height, entry.index, entry.idiom)
+                    }).collect())
+                },
+                _ => None,
+            };
+
+
         let state = rendition_key_values.iter().find_map(|(attribute, value)| {
             if *attribute == coreui::rendition::AttributeType::State {
                 FromPrimitive::from_u16(*value)
@@ -435,6 +451,7 @@ impl AssetUtilEntry {
             scale,
             sha1_digest,
             size_on_disk,
+            sizes,
             state,
             template_mode,
             uti,
