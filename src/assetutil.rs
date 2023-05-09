@@ -235,11 +235,13 @@ impl AssetUtilEntry {
             coreui::rendition::LayoutType32::Data => Some("Data".to_string()),
             coreui::rendition::LayoutType32::Image => Some("Image".to_string()),
             coreui::rendition::LayoutType32::MultisizeImage => Some("MultiSized Image".to_string()),
+            coreui::rendition::LayoutType32::PackedImage => Some("PackedImage".to_string()),
             _ => None,
         };
 
         // TODO: fix
         let bits_per_component = match layout {
+            coreui::rendition::LayoutType32::PackedImage |
             coreui::rendition::LayoutType32::Image => Some(8),
             _ => None,
         };
@@ -250,6 +252,7 @@ impl AssetUtilEntry {
         };
 
         let color_model = match layout {
+            coreui::rendition::LayoutType32::PackedImage |
             coreui::rendition::LayoutType32::Image => csi_header.color_space.color_model(),
             _ => None,
         };
@@ -294,7 +297,8 @@ impl AssetUtilEntry {
         };
 
         let encoding = match layout {
-            coreui::rendition::LayoutType32::Image => Some(csi_header.pixel_format),
+            coreui::rendition::LayoutType32::Image |
+            coreui::rendition::LayoutType32::PackedImage => Some(csi_header.pixel_format),
             _ => None,
         };
 
@@ -305,15 +309,17 @@ impl AssetUtilEntry {
 
         let name_identifier = rendition_key_values
             .iter()
-            .find(|(attribute, _)| *attribute == coreui::rendition::AttributeType::Identifier)
+            .find(|(attribute, value)| *attribute == coreui::rendition::AttributeType::Identifier && *value > 0)
             .and_then(|(_, value)| Some(*value));
 
         let opaque = match layout {
-            coreui::rendition::LayoutType32::Image => Some(csi_header.is_opaque()),
+            coreui::rendition::LayoutType32::Image |
+            coreui::rendition::LayoutType32::PackedImage => Some(csi_header.is_opaque()),
             _ => None,
         };
 
         let mut pixel_height = match layout {
+            coreui::rendition::LayoutType32::PackedImage |
             coreui::rendition::LayoutType32::Image => Some(csi_header.height),
             _ => None,
         };
@@ -328,6 +334,7 @@ impl AssetUtilEntry {
         }
 
         let mut pixel_width = match layout {
+            coreui::rendition::LayoutType32::PackedImage |
             coreui::rendition::LayoutType32::Image => Some(csi_header.width),
             _ => None,
         };
@@ -343,7 +350,13 @@ impl AssetUtilEntry {
 
         let rendition_name = match layout {
             coreui::rendition::LayoutType32::Image => Some(csi_header.csimetadata.name()),
+            coreui::rendition::LayoutType32::PackedImage => Some(csi_header.csimetadata.name()),
             _ => None,
+        };
+        let name = if facet_key.is_some() {
+            facet_key
+        } else {
+            rendition_name.clone()
         };
 
         let scale = if csi_header.scale_factor == 0 {
@@ -442,7 +455,7 @@ impl AssetUtilEntry {
             data_length,
             encoding,
             idiom,
-            name: facet_key,
+            name,
             name_identifier,
             opaque,
             pixel_height,
