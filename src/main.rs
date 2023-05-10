@@ -103,6 +103,7 @@ fn main() -> Result<()> {
             let car = coreui::CarUtilAssetStorage::from(&car_path, false)?;
             dbg!(car.theme_store.store.header);
             dbg!(car.theme_store.store.extended_metadata);
+            dbg!(car.theme_store.store.renditionkeyfmt);
             dbg!(car.theme_store.store.appearancedb);
             dbg!(car.theme_store.store.bitmapkeydb);
             dbg!(car.theme_store.store.facetkeysdb);
