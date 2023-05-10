@@ -67,7 +67,7 @@ impl Key {
     }
 }
 
-#[derive(BinRead)]
+#[derive(BinRead, BinWrite)]
 #[brw(little)]
 pub struct KeyToken {
     _cursor_hotspot: (u16, u16),
@@ -85,20 +85,41 @@ impl Debug for KeyToken {
     }
 }
 
-#[derive(BinRead, Debug)]
+#[derive(BinRead, BinWrite, Debug)]
 pub struct Attribute {
-    #[br(parse_with = parse_rendition_attribute_type_u16)]
-    pub name: AttributeType,
+    pub name: AttributeType16,
     pub value: u16,
 }
 
-#[binrw::parser(reader, endian)]
-fn parse_rendition_attribute_type_u16() -> binrw::BinResult<AttributeType> {
-    let raw = u16::read_options(reader, endian, ())?;
-    let attribute = num::FromPrimitive::from_u16(raw);
-    attribute.ok_or(binrw::Error::NoVariantMatch {
-        pos: reader.stream_position().unwrap(),
-    })
+#[derive(Debug, BinRead, BinWrite, PartialEq, FromPrimitive, Clone, Copy)]
+#[brw(repr(u16))]
+pub enum AttributeType16 {
+    Look = 0,
+    Element,
+    Part,
+    Size,
+    Direction,
+    PlaceHolder,
+    Value,
+    Appearance,
+    Dimension1,
+    Dimension2,
+    State,
+    Layer,
+    Scale,
+    Unknown13,
+    PresentationState,
+    Idiom,
+    Subtype,
+    Identifier,
+    PreviousValue,
+    PreviousState,
+    SizeClassHorizontal,
+    SizeClassVertical,
+    MemoryClass,
+    GraphicsClass,
+    DisplayGamut,
+    DeploymentTarget,
 }
 
 #[derive(Debug, BinRead, BinWrite, PartialEq, FromPrimitive, Clone, Copy)]
@@ -184,7 +205,7 @@ pub enum Rendition {
         version: u32,
         compression_type: CompressionType,
         idk: u32,
-        #[br(magic = b"KCBC")]
+        #[brw(magic = b"KCBC")]
         a: u32,
         b: u32,
         c: u32,

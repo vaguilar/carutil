@@ -1,8 +1,9 @@
 use binrw::BinRead;
+use binrw::BinWrite;
 use std::fmt::Debug;
 
-#[derive(BinRead)]
-#[br(little)]
+#[derive(BinRead, BinWrite)]
+#[brw(little)]
 pub struct Key {
     pub raw: [u16; 11],
 }

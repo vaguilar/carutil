@@ -227,12 +227,12 @@ impl CarUtilAssetStorage {
         let tree = bom::Tree {
             version: 1,
             path_block_id: paths_block_id,
-            block_size: 1024,
+            block_size: 1024, // ???
             path_count: paths.count as u32,
             unknown3: 0,
         };
         tree.write(&mut writer)?;
-        let tree_block_id = block_storage.add_item(next_address, writer.position() as u32);
+        let renditions_tree_block_id = block_storage.add_item(next_address, writer.position() as u32);
 
         // BOM BlockStorage
         let block_storage_address = 0x8000; // arbitrary, TODO: fix
@@ -246,7 +246,7 @@ impl CarUtilAssetStorage {
                 bom::Var::from("CARHEADER", header_block_id),
                 bom::Var::from("EXTENDED_METADATA", extended_header_block_id),
                 bom::Var::from("KEYFORMAT", rendition_key_format_block_id),
-                bom::Var::from("RENDITIONS", tree_block_id),
+                bom::Var::from("RENDITIONS", renditions_tree_block_id),
             ],
         };
         let var_storage_address = 0x7000; // arbitrary, TODO: fix

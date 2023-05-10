@@ -157,7 +157,7 @@ impl AssetUtilEntry {
                     .attributes
                     .iter()
                     .find(|attribute| {
-                        attribute.name == coreui::rendition::AttributeType::Identifier
+                        attribute.name == coreui::rendition::AttributeType16::Identifier
                     })
                     .and_then(|attribute| Some((attribute.value, name.to_string())))
             })

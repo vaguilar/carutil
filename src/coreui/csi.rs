@@ -153,7 +153,7 @@ pub struct Header {
     pub csibitmaplist: BitmapList,
     #[br(count = csibitmaplist.tlv_length)]
     pub tlv_data: common::RawData,
-    #[br(if(csibitmaplist.rendition_length > 0))]
+    #[brw(if(csibitmaplist.rendition_length > 0))]
     pub rendition_data: Option<rendition::Rendition>,
 }
 
