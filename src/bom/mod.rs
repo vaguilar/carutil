@@ -8,6 +8,7 @@ use binrw::helpers;
 use binrw::io::TakeSeekExt;
 use binrw::meta::ReadEndian;
 use binrw::BinRead;
+use binrw::BinWrite;
 use binrw::FilePtr;
 use memmap::Mmap;
 
@@ -16,8 +17,8 @@ type BlockID = u32;
 #[derive(BinRead, Debug)]
 #[brw(big, magic = b"BOMStore")]
 pub struct Storage {
-    _version: u32,
-    _block_storage_nonnull_count: u32,
+    pub version: u32,
+    pub block_storage_nonnull_count: u32,
     pub block_storage: FilePtr<u32, BlockStorage>,
     pub block_storage_length: u32,
     pub var_storage: FilePtr<u32, VarStorage>,
@@ -55,17 +56,23 @@ impl Storage {
     }
 }
 
-#[derive(BinRead, Debug)]
+#[derive(BinRead, BinWrite, Debug)]
 pub struct BlockStorage {
-    _count: u32, // number of ranges, some uninitialized
-    #[br(count = _count)]
+    pub count: u32, // number of ranges, some uninitialized
+    #[br(count = count)]
     pub items: Vec<BlockRange>,
 }
 
-#[derive(BinRead, Clone, Copy)]
+#[derive(BinRead, BinWrite, Clone, Copy)]
 pub struct BlockRange {
     pub address: u32,
     pub length: u32,
+}
+
+impl BlockRange {
+    pub fn zero() -> BlockRange {
+        BlockRange { address: 0, length: 0 }
+    }
 }
 
 impl BlockRange {
@@ -97,14 +104,14 @@ impl Debug for BlockRange {
     }
 }
 
-#[derive(BinRead, Debug)]
+#[derive(BinRead, BinWrite, Debug)]
 pub struct VarStorage {
-    _count: u32,
-    #[br(count = _count)]
+    pub count: u32,
+    #[br(count = count)]
     pub vars: Vec<Var>,
 }
 
-#[derive(BinRead)]
+#[derive(BinRead, BinWrite)]
 pub struct Var {
     pub block_id: BlockID,
     pub name_length: u8,
@@ -128,7 +135,7 @@ impl Debug for Var {
     }
 }
 
-#[derive(Debug, BinRead)]
+#[derive(Debug, BinRead, BinWrite)]
 #[brw(big, magic = b"tree")]
 pub struct Tree {
     pub version: u32,
@@ -180,7 +187,7 @@ impl Tree {
     }
 }
 
-#[derive(Debug, BinRead)]
+#[derive(Debug, BinRead, BinWrite)]
 #[brw(big)]
 pub struct Paths {
     pub is_leaf: u16,
