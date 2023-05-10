@@ -26,8 +26,8 @@ impl KeyFormat {
     }
 }
 
-#[derive(BinRead, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
-#[br(little)]
+#[derive(BinRead, BinWrite, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
+#[brw(little)]
 pub struct Key {
     raw: [u16; 18],
 }
@@ -150,7 +150,7 @@ impl Display for AttributeType {
     }
 }
 
-#[derive(Debug, BinRead, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, BinRead, BinWrite, Clone, PartialEq, PartialOrd)]
 pub struct ColorFlags(pub u32);
 
 impl ColorFlags {
@@ -161,9 +161,9 @@ impl ColorFlags {
     }
 }
 
-#[derive(Debug, BinRead, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, BinRead, BinWrite, Clone, PartialEq, PartialOrd)]
 pub enum Rendition {
-    #[br(magic = b"RLOC")]
+    #[brw(magic = b"RLOC")]
     Color {
         version: u32,
         flags: ColorFlags,
@@ -171,7 +171,7 @@ pub enum Rendition {
         #[br(count = component_count)]
         components: Vec<f64>,
     },
-    #[br(magic = b"DWAR")]
+    #[brw(magic = b"DWAR")]
     RawData {
         version: u32,
         _raw_data_length: u32,
@@ -179,7 +179,7 @@ pub enum Rendition {
         raw_data: RawData,
     },
     // Why is there sometimes two levels here?
-    #[br(magic = b"MLEC")]
+    #[brw(magic = b"MLEC")]
     ThemeCBCK {
         version: u32,
         compression_type: CompressionType,
@@ -193,7 +193,7 @@ pub enum Rendition {
         raw_data: RawData,
     },
     // CELM ???
-    #[br(magic = b"MLEC")]
+    #[brw(magic = b"MLEC")]
     Theme {
         version: u32,
         compression_type: CompressionType,
@@ -201,7 +201,7 @@ pub enum Rendition {
         #[br(count = _raw_data_length)]
         raw_data: RawData,
     },
-    #[br(magic = b"SISM")]
+    #[brw(magic = b"SISM")]
     MultisizeImageSet {
         version: u32,
         sizes_count: u32,
@@ -217,7 +217,7 @@ pub enum Rendition {
     },
 }
 
-#[derive(Debug, BinRead, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, BinRead, BinWrite, Clone, PartialEq, PartialOrd)]
 pub struct MultisizeImageSetEntry {
     pub width: u32,
     pub height: u32,
@@ -225,8 +225,8 @@ pub struct MultisizeImageSetEntry {
     pub idiom: Idiom,
 }
 
-#[derive(Debug, BinRead, Clone, FromPrimitive, Serialize, PartialEq, PartialOrd)]
-#[br(repr = u16)]
+#[derive(Debug, BinRead, BinWrite, Clone, FromPrimitive, Serialize, PartialEq, PartialOrd)]
+#[brw(repr = u16)]
 #[serde(rename_all = "lowercase")]
 pub enum Idiom {
     Universal = 0,
@@ -238,8 +238,8 @@ pub enum Idiom {
     Marketing,
 }
 
-#[derive(Debug, BinRead, Clone, Copy, Serialize, PartialEq, PartialOrd)]
-#[br(repr = u32)]
+#[derive(Debug, BinRead, BinWrite, Clone, Copy, Serialize, PartialEq, PartialOrd)]
+#[brw(repr = u32)]
 #[serde(rename_all = "lowercase")]
 pub enum CompressionType {
     Uncompressed = 0,
@@ -284,8 +284,7 @@ type BGRAColor = u32;
 
 #[derive(Debug, BinRead, Clone)]
 #[br(import(width: u32, height: u32))]
-#[br(magic = 0xCAFEF00Du32)]
-#[br(little)]
+#[brw(little, magic = 0xCAFEF00Du32)]
 pub struct QuantizedImage {
     _version: u32,
     pub color_count: u16,
@@ -335,8 +334,8 @@ pub enum LayoutType {
 }
 
 // 32 bit version of above
-#[derive(BinRead, Debug, Clone, Copy)]
-#[br(repr(u32))]
+#[derive(BinRead, BinWrite, Debug, Clone, Copy)]
+#[brw(repr(u32))]
 pub enum LayoutType32 {
     TextEffect = 0x007,
     Vector = 0x009,

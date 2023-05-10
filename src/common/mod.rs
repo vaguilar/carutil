@@ -1,4 +1,7 @@
-use binrw::{helpers::count_with, BinRead, VecArgs};
+use binrw::helpers::count_with;
+use binrw::BinRead;
+use binrw::BinWrite;
+use binrw::VecArgs;
 use std::fmt::Debug;
 
 // wrap Vec<u8> to make debugging better
@@ -15,6 +18,19 @@ impl BinRead for RawData {
     ) -> binrw::BinResult<Self> {
         let r = count_with(args.count, u8::read_options)(reader, endian, ())?;
         Ok(RawData(r))
+    }
+}
+
+impl BinWrite for RawData {
+    type Args<'a> = ();
+
+    fn write_options<W: std::io::Write + std::io::Seek>(
+        &self,
+        writer: &mut W,
+        endian: binrw::Endian,
+        args: Self::Args<'_>,
+    ) -> binrw::BinResult<()> {
+        self.0.write_options(writer, endian, args)
     }
 }
 

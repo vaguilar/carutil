@@ -1,6 +1,7 @@
 use anyhow::Context;
 use anyhow::Result;
 use binrw::BinRead;
+use binrw::BinWrite;
 use chrono::NaiveDateTime;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
@@ -21,7 +22,7 @@ use super::rendition::CompressionType;
 use super::rendition::TemplateMode;
 use super::tlv;
 
-#[derive(BinRead, Clone)]
+#[derive(BinRead, BinWrite, Clone)]
 #[brw(little)]
 pub struct Metadata {
     pub mod_time: u32,
@@ -56,11 +57,11 @@ pub struct Bitmap {
     pub data: common::RawData,
 }
 
-#[derive(BinRead, Debug, Clone)]
+#[derive(BinRead, BinWrite, Debug, Clone)]
 pub struct BitmapList {
     pub tlv_length: u32,
     pub unknown: u32, // usually 1?
-    pub zero: u32,
+    pub zero: u32,    // usually 0?
     pub rendition_length: u32,
 }
 
@@ -87,7 +88,7 @@ struct cuithemerenditionrenditionflags {
 }
  */
 
-#[derive(BinRead, Debug, Clone)]
+#[derive(BinRead, BinWrite, Debug, Clone)]
 pub struct RenditionFlags(pub u32);
 
 impl RenditionFlags {
@@ -117,8 +118,8 @@ impl RenditionFlags {
     }
 }
 
-#[derive(BinRead, Debug, Clone, Copy, Serialize, FromPrimitive)]
-#[br(repr(u32))]
+#[derive(BinRead, BinWrite, Debug, Clone, Copy, Serialize, FromPrimitive)]
+#[brw(repr(u32))]
 pub enum PixelFormat {
     None = 0,
     ARGB = 0x41524742,
@@ -127,7 +128,7 @@ pub enum PixelFormat {
     JPEG = 0x4A504547,
 }
 
-#[derive(BinRead, Debug, Clone)]
+#[derive(BinRead, BinWrite, Debug, Clone)]
 pub struct ColorModel(pub u32);
 
 impl ColorModel {
@@ -138,7 +139,7 @@ impl ColorModel {
     }
 }
 
-#[derive(BinRead, Debug, Clone)]
+#[derive(BinRead, BinWrite, Debug, Clone)]
 #[brw(little, magic = b"ISTC")]
 pub struct Header {
     pub version: u32,

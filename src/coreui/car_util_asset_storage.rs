@@ -189,27 +189,46 @@ impl CarUtilAssetStorage {
         let rendition_key_format_block_id =
             block_storage.add_item(next_address, writer.position() as u32);
 
-        // empty path for renditions
+        // list of path indices for renditions
+        let mut rendition_path_indices = vec![];
+        for (rendition_key, csi_header) in &self.theme_store.store.imagedb {
+            let next_address = block_storage.next_item_address();
+            writer.set_position(next_address as u64);
+            rendition_key.write(&mut writer)?;
+            let key_block_id = block_storage.add_item(next_address, writer.position() as u32);
+
+            let next_address = block_storage.next_item_address();
+            writer.set_position(next_address as u64);
+            csi_header.write(&mut writer)?;
+            let value_block_id = block_storage.add_item(next_address, writer.position() as u32);
+
+            rendition_path_indices.push(bom::PathIndices {
+                index0: value_block_id,
+                index1: key_block_id,
+            });
+        }
+
+        // path for renditions
         let next_address = block_storage.next_item_address();
         writer.set_position(next_address as u64);
         let paths = bom::Paths {
             is_leaf: 1,
-            count: 0,
+            count: rendition_path_indices.len() as u16,
             forward: 0,
             backward: 0,
-            indices: vec![],
+            indices: rendition_path_indices,
         };
         paths.write(&mut writer)?;
         let paths_block_id = block_storage.add_item(next_address, writer.position() as u32);
 
-        // empty tree for renditions
+        // tree for renditions
         let next_address = block_storage.next_item_address();
         writer.set_position(next_address as u64);
         let tree = bom::Tree {
             version: 1,
             path_block_id: paths_block_id,
             block_size: 1024,
-            path_count: 0,
+            path_count: paths.count as u32,
             unknown3: 0,
         };
         tree.write(&mut writer)?;
