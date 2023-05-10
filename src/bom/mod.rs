@@ -57,6 +57,7 @@ impl Storage {
 }
 
 #[derive(BinRead, BinWrite, Debug)]
+#[brw(big)]
 pub struct BlockStorage {
     pub count: u32, // number of ranges, some uninitialized
     #[br(count = count)]
@@ -64,6 +65,7 @@ pub struct BlockStorage {
 }
 
 #[derive(BinRead, BinWrite, Clone, Copy)]
+#[brw(big)]
 pub struct BlockRange {
     pub address: u32,
     pub length: u32,
@@ -105,6 +107,7 @@ impl Debug for BlockRange {
 }
 
 #[derive(BinRead, BinWrite, Debug)]
+#[brw(big)]
 pub struct VarStorage {
     pub count: u32,
     #[br(count = count)]
@@ -112,6 +115,7 @@ pub struct VarStorage {
 }
 
 #[derive(BinRead, BinWrite)]
+#[brw(big)]
 pub struct Var {
     pub block_id: BlockID,
     pub name_length: u8,

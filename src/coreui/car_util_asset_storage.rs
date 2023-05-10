@@ -226,7 +226,7 @@ impl CarUtilAssetStorage {
         };
         let block_storage_address = 0x8000; // arbitrary, TODO: fix
         writer.set_position(block_storage_address);
-        block_storage.write_be(&mut writer)?;
+        block_storage.write(&mut writer)?;
 
         // BOM VarStorage
         let var_storage = bom::VarStorage {
@@ -251,7 +251,7 @@ impl CarUtilAssetStorage {
         };
         let var_storage_address = 0x7000;  // arbitrary, TODO: fix
         writer.set_position(var_storage_address);
-        var_storage.write_be(&mut writer)?;
+        var_storage.write(&mut writer)?;
         let var_storage_length = (writer.position() - var_storage_address) as u32;
 
         // BOM Storage (Header)
