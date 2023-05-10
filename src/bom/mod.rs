@@ -64,17 +64,41 @@ pub struct BlockStorage {
     pub items: Vec<BlockRange>,
 }
 
+impl BlockStorage {
+    pub fn new() -> BlockStorage {
+        // skip 0th value
+        BlockStorage {
+            count: 1,
+            items: vec![BlockRange {
+                address: 0x200,
+                length: 0,
+            }],
+        }
+    }
+
+    // next item should be 16 byte aligned
+    pub fn next_item_address(&self) -> u32 {
+        if let Some(last) = self.items.last() {
+            let unaligned = last.address + last.length;
+            (unaligned & (!0xf)) + 0x10
+        } else {
+            0x200 // this seems to be the default
+        }
+    }
+
+    pub fn add_item(&mut self, address: u32, end_address: u32) -> BlockID {
+        let length = end_address - address;
+        self.items.push(BlockRange { address, length });
+        self.count = self.items.len() as u32;
+        self.count - 1
+    }
+}
+
 #[derive(BinRead, BinWrite, Clone, Copy)]
 #[brw(big)]
 pub struct BlockRange {
     pub address: u32,
     pub length: u32,
-}
-
-impl BlockRange {
-    pub fn zero() -> BlockRange {
-        BlockRange { address: 0, length: 0 }
-    }
 }
 
 impl BlockRange {
@@ -126,6 +150,14 @@ pub struct Var {
 impl Var {
     pub fn name(&self) -> String {
         String::from_utf8_lossy(&self.name).into_owned()
+    }
+
+    pub fn from(name: &str, block_id: u32) -> Var {
+        Var {
+            block_id,
+            name_length: name.len() as u8,
+            name: name.as_bytes().to_vec(),
+        }
     }
 }
 

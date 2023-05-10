@@ -164,30 +164,34 @@ impl CarUtilAssetStorage {
     pub fn write_data(&self, path: &str) -> Result<()> {
         let mut buffer: Vec<u8> = vec![];
         let mut writer = Cursor::new(&mut buffer);
-        let mut block_ranges: Vec<bom::BlockRange> = vec![bom::BlockRange::zero()];
-
-        writer.set_position(0x200);
+        let mut block_storage = bom::BlockStorage::new();
 
         // header
-        let last_position = writer.position();
+        let next_address = block_storage.next_item_address();
+        writer.set_position(next_address as u64);
         self.theme_store.store.header.write(&mut writer)?;
-        block_ranges.push(bom::BlockRange {
-            address: last_position as u32,
-            length: (writer.position() - last_position) as u32,
-        });
+        let header_block_id = block_storage.add_item(next_address, writer.position() as u32);
 
         // extended header
-        writer.set_position((writer.position() & (!0xf)) + 0x10); // next 16 byte bounary
-        let last_position = writer.position();
-        self.theme_store.store.extended_metadata.write(&mut writer)?;
-        block_ranges.push(bom::BlockRange {
-            address: last_position as u32,
-            length: (writer.position() - last_position) as u32,
-        });
+        let next_address = block_storage.next_item_address();
+        writer.set_position(next_address as u64);
+        self.theme_store
+            .store
+            .extended_metadata
+            .write(&mut writer)?;
+        let extended_header_block_id =
+            block_storage.add_item(next_address, writer.position() as u32);
+
+        // rendition key fmt
+        let next_address = block_storage.next_item_address();
+        writer.set_position(next_address as u64);
+        self.theme_store.store.renditionkeyfmt.write(&mut writer)?;
+        let rendition_key_format_block_id =
+            block_storage.add_item(next_address, writer.position() as u32);
 
         // empty path for renditions
-        writer.set_position((writer.position() & (!0xf)) + 0x10); // next 16 byte bounary
-        let last_position = writer.position();
+        let next_address = block_storage.next_item_address();
+        writer.set_position(next_address as u64);
         let paths = bom::Paths {
             is_leaf: 1,
             count: 0,
@@ -196,60 +200,37 @@ impl CarUtilAssetStorage {
             indices: vec![],
         };
         paths.write(&mut writer)?;
-        block_ranges.push(bom::BlockRange {
-            address: last_position as u32,
-            length: (writer.position() - last_position) as u32,
-        });
+        let paths_block_id = block_storage.add_item(next_address, writer.position() as u32);
 
         // empty tree for renditions
-        writer.set_position((writer.position() & (!0xf)) + 0x10); // next 16 byte bounary
-        let last_position = writer.position();
+        let next_address = block_storage.next_item_address();
+        writer.set_position(next_address as u64);
         let tree = bom::Tree {
             version: 1,
-            path_block_id: 3,
+            path_block_id: paths_block_id,
             block_size: 1024,
             path_count: 0,
             unknown3: 0,
         };
         tree.write(&mut writer)?;
-        block_ranges.push(bom::BlockRange {
-            address: last_position as u32,
-            length: (writer.position() - last_position) as u32,
-        });
+        let tree_block_id = block_storage.add_item(next_address, writer.position() as u32);
 
         // BOM BlockStorage
-        // let block_storage_length = (writer.position() - 0x200) as u32;
-        let block_ranges_count = block_ranges.len() as u32;
-        let block_storage = bom::BlockStorage {
-            count: block_ranges.len() as u32,
-            items: block_ranges,
-        };
         let block_storage_address = 0x8000; // arbitrary, TODO: fix
         writer.set_position(block_storage_address);
         block_storage.write(&mut writer)?;
 
         // BOM VarStorage
         let var_storage = bom::VarStorage {
-            count: 3,
+            count: 4,
             vars: vec![
-                bom::Var {
-                    block_id: 1,
-                    name_length: 9,
-                    name: "CARHEADER".as_bytes().to_vec(),
-                },
-                bom::Var {
-                    block_id: 2,
-                    name_length: 17,
-                    name: "EXTENDED_METADATA".as_bytes().to_vec(),
-                },
-                bom::Var {
-                    block_id: 4,
-                    name_length: 10,
-                    name: "RENDITIONS".as_bytes().to_vec(),
-                },
+                bom::Var::from("CARHEADER", header_block_id),
+                bom::Var::from("EXTENDED_METADATA", extended_header_block_id),
+                bom::Var::from("KEYFORMAT", rendition_key_format_block_id),
+                bom::Var::from("RENDITIONS", tree_block_id),
             ],
         };
-        let var_storage_address = 0x7000;  // arbitrary, TODO: fix
+        let var_storage_address = 0x7000; // arbitrary, TODO: fix
         writer.set_position(var_storage_address);
         var_storage.write(&mut writer)?;
         let var_storage_length = (writer.position() - var_storage_address) as u32;
@@ -258,7 +239,7 @@ impl CarUtilAssetStorage {
         writer.set_position(0);
         b"BOMStore".write(&mut writer)?; // magic
         1u32.write_be(&mut writer)?; // version
-        block_ranges_count.write_be(&mut writer)?;
+        block_storage.count.write_be(&mut writer)?;
         (block_storage_address as u32).write_be(&mut writer)?;
         (block_storage.count * 8 + 4).write_be(&mut writer)?; // size of BlockStorage struct
         (var_storage_address as u32).write_be(&mut writer)?;

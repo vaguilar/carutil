@@ -1,4 +1,5 @@
 use binrw::BinRead;
+use binrw::BinWrite;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::Serialize;
@@ -10,7 +11,7 @@ use std::iter::zip;
 use crate::common::RawData;
 use crate::coregraphics;
 
-#[derive(Debug, BinRead)]
+#[derive(Debug, BinRead, BinWrite)]
 #[brw(little, magic = b"tmfk")]
 pub struct KeyFormat {
     pub _version: u32,
@@ -100,8 +101,8 @@ fn parse_rendition_attribute_type_u16() -> binrw::BinResult<AttributeType> {
     })
 }
 
-#[derive(Debug, BinRead, PartialEq, FromPrimitive, Clone, Copy)]
-#[br(repr(u32))]
+#[derive(Debug, BinRead, BinWrite, PartialEq, FromPrimitive, Clone, Copy)]
+#[brw(repr(u32))]
 pub enum AttributeType {
     Look = 0,
     Element,
