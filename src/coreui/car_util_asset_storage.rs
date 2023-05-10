@@ -1,25 +1,24 @@
+use super::bitmap;
+use super::csi;
+use super::rendition;
 use anyhow::Result;
-use binrw::{helpers, BinWrite, NullString};
-use coreui::csi;
-use coreui::rendition;
+use binrw::BinRead;
+use binrw::BinWrite;
+use binrw::NullString;
 use memmap::Mmap;
 use sha2::Digest;
 use sha2::Sha256;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::fs;
 use std::io::Cursor;
-use std::{fs, time::UNIX_EPOCH};
-
-use binrw;
-use binrw::BinRead;
+use std::time::UNIX_EPOCH;
 
 use crate::bom;
 use crate::common;
-use crate::coreui;
-use crate::coreui::bitmap;
 
-pub type NameIdentifier = u32; // or u16?
+pub type NameIdentifier = u32;
 
 pub struct CarUtilAssetStorage {
     pub theme_store: StructuredThemeStore,
@@ -113,15 +112,16 @@ impl CarUtilAssetStorage {
                     .into_iter()
                     .collect()
             })
-            .unwrap_or_default();
+            .expect("Unable to find required RENDITIONS var in BOMTree.");
 
-        let imagedb = bom_storage
+        let imagedb: BTreeMap<rendition::Key, csi::Header> = bom_storage
             .get_named_typed_block::<bom::Tree>("RENDITIONS", &mut reader, ())
             .and_then(|tree| {
                 tree.items_typed::<rendition::Key, csi::Header>(&bom_storage, &mut reader)
             })
-            .unwrap();
-        let imagedb = Some(imagedb.into_iter().collect());
+            .expect("Unable to find required RENDITIONS var in BOMTree.")
+            .into_iter()
+            .collect();
 
         let appearancedb: Option<BTreeMap<String, u32>> = bom_storage
             .get_named_typed_block::<bom::Tree>("APPEARANCEKEYS", &mut reader, ())
@@ -282,7 +282,7 @@ pub struct CommonAssetStorage {
     pub renditionkeyfmt: rendition::KeyFormat,  // KEYFORMAT
     pub rendition_sha_digests: BTreeMap<rendition::Key, Vec<u8>>,
 
-    pub imagedb: std::option::Option<BTreeMap<rendition::Key, csi::Header>>, // RENDITIONS
+    pub imagedb: BTreeMap<rendition::Key, csi::Header>, // RENDITIONS
     // pub colordb: Option<Vec<db::Entry<Color>>>,
     // pub fontdb: Option<Vec<Font>>,
     // pub fontsizedb: Option<Vec<FontSize>>,
@@ -339,7 +339,7 @@ pub struct CarHeader {
 impl Debug for CarHeader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CarHeader")
-            .field("_magic", &self.magic)
+            .field("magic", &self.magic)
             .field("core_ui_version", &self.core_ui_version)
             .field("storage_version", &self.storage_version)
             .field("storage_timestamp", &self.storage_timestamp)
@@ -392,26 +392,5 @@ impl Debug for CarExtendedMetadata {
                 &common::parse_padded_string(&self.authoring_tool),
             )
             .finish()
-    }
-}
-
-#[derive(Debug)]
-pub struct PaddedString {
-    pub string: String,
-}
-
-impl BinRead for PaddedString {
-    type Args<'a> = (u32,);
-
-    fn read_options<R: std::io::Read + std::io::Seek>(
-        reader: &mut R,
-        endian: binrw::Endian,
-        args: Self::Args<'_>,
-    ) -> binrw::BinResult<Self> {
-        let (length,) = args;
-        let buffer: Vec<u8> = helpers::count(length as usize)(reader, endian, ())?;
-        Ok(PaddedString {
-            string: String::from_utf8_lossy(&buffer).to_string(),
-        })
     }
 }

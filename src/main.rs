@@ -88,7 +88,7 @@ fn main() -> Result<()> {
             output_path,
         } => {
             let car = coreui::CarUtilAssetStorage::from(&car_path, false)?;
-            let imagedb = car.theme_store.store.imagedb.unwrap_or_default();
+            let imagedb = car.theme_store.store.imagedb;
             for (_rendition_key, csi_header) in imagedb.iter() {
                 let result = csi_header.extract(&output_path);
                 if let Err(err) = result {

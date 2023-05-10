@@ -164,39 +164,36 @@ impl AssetUtilEntry {
             .flatten()
             .collect::<HashMap<u16, String>>();
 
-        if let Some(imagedb) = &asset_storage.imagedb {
-            for (rendition_key, csi_header) in imagedb {
-                let rendition_key_values: Vec<(coreui::rendition::AttributeType, u16)> =
-                    asset_storage.renditionkeyfmt.map(rendition_key);
-                let name_identifier = rendition_key_values
-                    .iter()
-                    .find(|(attribute, _)| {
-                        *attribute == coreui::rendition::AttributeType::Identifier
-                    })
-                    .and_then(|(_, value)| Some(value));
-                let facet_key = if let Some(name_identifier) = name_identifier {
-                    name_identifer_to_facet_key.get(&name_identifier).cloned()
-                } else {
-                    None
-                };
-                let sha_digest = asset_storage
-                    .rendition_sha_digests
-                    .get(rendition_key)
-                    .cloned()
-                    .unwrap_or_default();
-                let entry = AssetUtilEntry::from_csi_header(
-                    &csi_header,
-                    facet_key,
-                    rendition_key_values,
-                    sha_digest,
-                    asset_storage
-                        .appearancedb
-                        .as_ref()
-                        .unwrap_or(&BTreeMap::new()),
-                );
-                result.push(entry);
-            }
+        for (rendition_key, csi_header) in &asset_storage.imagedb {
+            let rendition_key_values: Vec<(coreui::rendition::AttributeType, u16)> =
+                asset_storage.renditionkeyfmt.map(rendition_key);
+            let name_identifier = rendition_key_values
+                .iter()
+                .find(|(attribute, _)| *attribute == coreui::rendition::AttributeType::Identifier)
+                .and_then(|(_, value)| Some(value));
+            let facet_key = if let Some(name_identifier) = name_identifier {
+                name_identifer_to_facet_key.get(&name_identifier).cloned()
+            } else {
+                None
+            };
+            let sha_digest = asset_storage
+                .rendition_sha_digests
+                .get(rendition_key)
+                .cloned()
+                .unwrap_or_default();
+            let entry = AssetUtilEntry::from_csi_header(
+                &csi_header,
+                facet_key,
+                rendition_key_values,
+                sha_digest,
+                asset_storage
+                    .appearancedb
+                    .as_ref()
+                    .unwrap_or(&BTreeMap::new()),
+            );
+            result.push(entry);
         }
+
         result
     }
 
