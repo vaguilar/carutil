@@ -360,6 +360,9 @@ pub enum LayoutType {
     LayerReference = 0x3F4,
     ContentRendition = 0x3F5,
     RecognitionObject = 0x3F6,
+    IconImageStack = 0x3FB,
+    IconGroup = 0x3FC,
+    NamedGradient = 0x3FD,
 }
 
 // 32 bit version of above
@@ -383,4 +386,7 @@ pub enum LayoutType32 {
     LayerReference = 0x3F4,
     ContentRendition = 0x3F5,
     RecognitionObject = 0x3F6,
+    IconImageStack = 0x3FB,
+    IconGroup = 0x3FC,
+    NamedGradient = 0x3FD,
 }

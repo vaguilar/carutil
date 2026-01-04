@@ -233,6 +233,10 @@ impl AssetUtilEntry {
             coreui::rendition::LayoutType32::Image => Some("Image".to_string()),
             coreui::rendition::LayoutType32::MultisizeImage => Some("MultiSized Image".to_string()),
             coreui::rendition::LayoutType32::PackedImage => Some("PackedImage".to_string()),
+            coreui::rendition::LayoutType32::Vector => Some("Vector".to_string()),
+            coreui::rendition::LayoutType32::IconGroup => Some("IconGroup".to_string()),
+            coreui::rendition::LayoutType32::IconImageStack => Some("IconImageStack".to_string()),
+            coreui::rendition::LayoutType32::NamedGradient => Some("Named Gradient".to_string()),
             _ => None,
         };
 

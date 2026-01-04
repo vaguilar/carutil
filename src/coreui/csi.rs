@@ -126,6 +126,7 @@ pub enum PixelFormat {
     Data = 0x44415441,
     Gray = 0x47413820,
     JPEG = 0x4A504547,
+    SVG  = 0x53564720,
 }
 
 #[derive(BinRead, BinWrite, Debug, Clone)]
